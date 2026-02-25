@@ -1,0 +1,59 @@
+# AnimeDB
+
+A self-hosted anime download manager with a web UI. Downloads videos via yt-dlp, organizes them into a Plex-compatible library structure, and optionally triggers Plex library scans.
+
+## Quick Start (Docker)
+
+### Prerequisites
+
+- [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/)
+
+### 1. Configure environment
+
+Copy the example env file and edit it:
+
+```bash
+cp .env.example .env
+```
+
+| Variable | Required | Description |
+|---|---|---|
+| `OUTPUT_FORMAT` | No | Video container format (default: `mkv`) |
+| `PLEX_URL` | No | Plex server URL, e.g. `http://192.168.1.50:32400` |
+| `PLEX_TOKEN` | No | Plex authentication token |
+| `PLEX_SECTION_MOVIES` | No | Plex library section ID for movies (default: `1`) |
+| `PLEX_SECTION_TV` | No | Plex library section ID for TV shows (default: `2`) |
+
+Plex integration is entirely optional. If you leave `PLEX_URL` and `PLEX_TOKEN` empty, everything else works normally.
+
+### 2. Start the application
+
+```bash
+docker-compose up -d
+```
+
+### 3. Open the UI
+
+Go to **http://localhost:3000** in your browser.
+
+### Usage
+
+1. Paste a YouTube URL, pick a category (movie / TV / other), and submit.
+2. The download runs in the background — progress is shown in the UI.
+3. Once complete, press the **Move to Library** button to organize the file into your media folder and trigger a Plex scan (if configured).
+
+### Data & Volumes
+
+| Path in container | Mapped to | Purpose |
+|---|---|---|
+| `/data` | Docker volume `animedb-data` | SQLite database (persisted across restarts) |
+| `/downloads` | `./downloads` on host | Temporary download staging area |
+| `/media` | `./media` on host | Organized media library |
+
+### Stopping
+
+```bash
+docker-compose down
+```
+
+Database data is preserved in the `animedb-data` Docker volume. Downloads and media files live on the host filesystem.
