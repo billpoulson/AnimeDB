@@ -2,17 +2,39 @@
 
 A self-hosted anime download manager with a web UI. Downloads videos via yt-dlp, organizes them into a Plex-compatible library structure, and optionally triggers Plex library scans.
 
-## Quick Start (Docker)
+## One-Line Install
+
+The install scripts download the repo, extract it, and start the app with Docker Compose.
+
+**Prerequisites:** [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/)
+
+**PowerShell (Windows):**
+
+```powershell
+irm https://raw.githubusercontent.com/billpoulson/AnimeDB/main/install.ps1 | iex
+```
+
+**Bash (Linux / macOS):**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/billpoulson/AnimeDB/main/install.sh | bash
+```
+
+Once finished, open **http://localhost:3000**.
+
+---
+
+## Manual Setup (Docker)
 
 ### Prerequisites
 
 - [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/)
 
-### 1. Configure environment
-
-Copy the example env file and edit it:
+### 1. Clone & configure
 
 ```bash
+git clone https://github.com/billpoulson/AnimeDB.git
+cd AnimeDB
 cp .env.example .env
 ```
 

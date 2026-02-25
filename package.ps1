@@ -89,7 +89,9 @@ $include = @(
     ".env.example",
     ".gitignore",
     "README.md",
-    "DESIGN.md"
+    "DESIGN.md",
+    "install.ps1",
+    "install.sh"
 )
 
 foreach ($item in $include) {
