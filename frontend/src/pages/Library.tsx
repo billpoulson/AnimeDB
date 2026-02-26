@@ -1,18 +1,21 @@
 import { useState, useEffect } from 'react';
-import { getDownloads, getConfig, deleteDownload, moveToLibrary, Download } from '../api/client';
+import { getDownloads, deleteDownload, moveToLibrary, unmoveFromLibrary, getLibraries, Download, Library as LibraryType } from '../api/client';
 import VideoPlayer from '../components/VideoPlayer';
 
 export default function Library() {
   const [downloads, setDownloads] = useState<Download[]>([]);
   const [loading, setLoading] = useState(true);
   const [playing, setPlaying] = useState<Download | null>(null);
-  const [plexConnected, setPlexConnected] = useState(false);
   const [movingIds, setMovingIds] = useState<Set<string>>(new Set());
+  const [libraries, setLibraries] = useState<LibraryType[]>([]);
+  const [moveTargetId, setMoveTargetId] = useState<string | null>(null);
+  const [selectedLibrary, setSelectedLibrary] = useState<string>('');
 
-  const handleMove = async (id: string) => {
+  const handleMove = async (id: string, libraryId?: string) => {
     setMovingIds((prev) => new Set(prev).add(id));
+    setMoveTargetId(null);
     try {
-      await moveToLibrary(id);
+      await moveToLibrary(id, libraryId);
       fetchLibrary();
     } catch (err) {
       console.error('Failed to move', err);
@@ -34,8 +37,20 @@ export default function Library() {
 
   useEffect(() => {
     fetchLibrary();
-    getConfig().then((c) => setPlexConnected(c.plexConnected)).catch(() => {});
+    getLibraries().then(setLibraries).catch(() => {});
   }, []);
+
+  const handleUnmove = async (id: string) => {
+    setMovingIds((prev) => new Set(prev).add(id));
+    try {
+      await unmoveFromLibrary(id);
+      fetchLibrary();
+    } catch (err) {
+      console.error('Failed to unmove', err);
+    } finally {
+      setMovingIds((prev) => { const s = new Set(prev); s.delete(id); return s; });
+    }
+  };
 
   const handleDelete = async (id: string) => {
     await deleteDownload(id);
@@ -67,7 +82,7 @@ export default function Library() {
               <th className="px-4 py-3 font-medium w-10"></th>
               <th className="px-4 py-3 font-medium">Title</th>
               <th className="px-4 py-3 font-medium">Category</th>
-              {plexConnected && <th className="px-4 py-3 font-medium">Status</th>}
+              <th className="px-4 py-3 font-medium">Status</th>
               <th className="px-4 py-3 font-medium">Path</th>
               <th className="px-4 py-3 font-medium">Date</th>
               <th className="px-4 py-3 font-medium w-10"></th>
@@ -89,36 +104,71 @@ export default function Library() {
                 </td>
                 <td className="px-4 py-3 font-medium">{dl.title || 'Untitled'}</td>
                 <td className="px-4 py-3 capitalize text-gray-400">{dl.category}</td>
-                {plexConnected && (
-                  <td className="px-4 py-3">
-                    {dl.moved_to_library ? (
-                      <span className="inline-flex items-center gap-1 text-xs text-green-400">
-                        <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                        In library
-                      </span>
-                    ) : movingIds.has(dl.id) ? (
-                      <span className="inline-flex items-center gap-1.5 text-xs text-blue-400">
-                        <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                        </svg>
-                        Moving...
-                      </span>
-                    ) : (
-                      <button
-                        onClick={() => handleMove(dl.id)}
-                        className="inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                <td className="px-4 py-3">
+                  {dl.moved_to_library ? (
+                    <button
+                      onClick={() => handleUnmove(dl.id)}
+                      disabled={movingIds.has(dl.id)}
+                      className="inline-flex items-center gap-1 text-xs text-green-400 hover:text-orange-400 transition-colors disabled:opacity-50"
+                      title="Remove from library (move back to downloads)"
+                    >
+                      <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                      {movingIds.has(dl.id) ? 'Moving...' : 'In library'}
+                    </button>
+                  ) : movingIds.has(dl.id) ? (
+                    <span className="inline-flex items-center gap-1.5 text-xs text-blue-400">
+                      <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Moving...
+                    </span>
+                  ) : moveTargetId === dl.id ? (
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={selectedLibrary}
+                        onChange={(e) => setSelectedLibrary(e.target.value)}
+                        className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
                       >
-                        <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-                        </svg>
-                        Move to library
+                        <option value="">Default location</option>
+                        {libraries.map((lib) => (
+                          <option key={lib.id} value={lib.id}>{lib.name} ({lib.type})</option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={() => handleMove(dl.id, selectedLibrary || undefined)}
+                        className="text-xs px-2 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+                      >
+                        Move
                       </button>
-                    )}
-                  </td>
-                )}
+                      <button
+                        onClick={() => setMoveTargetId(null)}
+                        className="text-xs px-2 py-1 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        if (libraries.length === 0) {
+                          handleMove(dl.id);
+                        } else {
+                          setMoveTargetId(dl.id);
+                          setSelectedLibrary('');
+                        }
+                      }}
+                      className="inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                    >
+                      <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                      Move to library
+                    </button>
+                  )}
+                </td>
                 <td className="px-4 py-3 text-gray-500 truncate max-w-xs">{dl.file_path}</td>
                 <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
                   {new Date(dl.created_at).toLocaleDateString()}

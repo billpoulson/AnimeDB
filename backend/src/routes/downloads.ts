@@ -7,6 +7,7 @@ import { enqueue } from '../services/queue';
 import { cancelDownload } from '../services/downloader';
 import { moveToLibrary } from '../services/mediaOrganizer';
 import { triggerPlexScan } from '../services/plexClient';
+import { config } from '../config';
 
 const router = Router();
 
@@ -58,6 +59,41 @@ router.get('/:id', (req: Request, res: Response) => {
   res.json(download);
 });
 
+router.patch('/:id', (req: Request, res: Response) => {
+  const { category, title, season, episode } = req.body;
+  const db = getDb();
+
+  const download = db.prepare('SELECT * FROM downloads WHERE id = ?').get(req.params.id) as any;
+  if (!download) {
+    return res.status(404).json({ error: 'Not found' });
+  }
+
+  const validCategories = ['movies', 'tv', 'other'];
+  if (category !== undefined && !validCategories.includes(category)) {
+    return res.status(400).json({ error: 'category must be movies, tv, or other' });
+  }
+
+  const fields: string[] = [];
+  const values: any[] = [];
+
+  if (category !== undefined) { fields.push('category = ?'); values.push(category); }
+  if (title !== undefined)    { fields.push('title = ?');    values.push(title || null); }
+  if (season !== undefined)   { fields.push('season = ?');   values.push(season || null); }
+  if (episode !== undefined)  { fields.push('episode = ?');  values.push(episode || null); }
+
+  if (fields.length === 0) {
+    return res.status(400).json({ error: 'No fields to update' });
+  }
+
+  fields.push("updated_at = datetime('now')");
+  values.push(req.params.id);
+
+  db.prepare(`UPDATE downloads SET ${fields.join(', ')} WHERE id = ?`).run(...values);
+
+  const updated = db.prepare('SELECT * FROM downloads WHERE id = ?').get(req.params.id);
+  res.json(updated);
+});
+
 router.post('/:id/cancel', (req: Request, res: Response) => {
   const db = getDb();
   const download = db.prepare(
@@ -82,7 +118,9 @@ router.post('/:id/cancel', (req: Request, res: Response) => {
 });
 
 router.post('/:id/move', async (req: Request, res: Response) => {
+  const { library_id } = req.body || {};
   const db = getDb();
+
   const download = db.prepare(
     'SELECT * FROM downloads WHERE id = ?'
   ).get(req.params.id) as any;
@@ -103,24 +141,76 @@ router.post('/:id/move', async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Source file not found' });
   }
 
+  let library: any = null;
+  if (library_id) {
+    library = db.prepare('SELECT * FROM libraries WHERE id = ?').get(library_id);
+    if (!library) {
+      return res.status(400).json({ error: 'Library not found' });
+    }
+  }
+
   try {
     const title = download.title || path.basename(download.file_path).replace(/\.[^.]+$/, '');
+    const category = library ? library.type : download.category;
     const targetPath = await moveToLibrary(download.file_path, {
       title,
-      category: download.category,
+      category,
       season: download.season ?? undefined,
       episode: download.episode ?? undefined,
-    });
+    }, library?.path);
 
     db.prepare(
-      `UPDATE downloads SET file_path = ?, moved_to_library = 1, updated_at = datetime('now') WHERE id = ?`
-    ).run(targetPath, download.id);
+      `UPDATE downloads SET file_path = ?, moved_to_library = 1, library_id = ?, updated_at = datetime('now') WHERE id = ?`
+    ).run(targetPath, library_id || null, download.id);
 
-    triggerPlexScan(download.category).catch(() => {});
+    triggerPlexScan(category, library?.plex_section_id).catch(() => {});
 
     res.json({ id: download.id, file_path: targetPath, moved_to_library: 1 });
   } catch (err: any) {
     res.status(500).json({ error: err.message || 'Failed to move file' });
+  }
+});
+
+router.post('/:id/unmove', async (req: Request, res: Response) => {
+  const db = getDb();
+  const download = db.prepare(
+    'SELECT * FROM downloads WHERE id = ?'
+  ).get(req.params.id) as any;
+
+  if (!download) {
+    return res.status(404).json({ error: 'Not found' });
+  }
+
+  if (!download.moved_to_library) {
+    return res.status(400).json({ error: 'Not in library' });
+  }
+
+  if (!download.file_path || !fs.existsSync(download.file_path)) {
+    return res.status(400).json({ error: 'Library file not found' });
+  }
+
+  try {
+    const ext = path.extname(download.file_path);
+    const downloadsDir = path.join(config.downloadPath, download.id);
+    fs.mkdirSync(downloadsDir, { recursive: true });
+    const targetPath = path.join(downloadsDir, `${download.id}${ext}`);
+
+    fs.copyFileSync(download.file_path, targetPath);
+    fs.unlinkSync(download.file_path);
+
+    const sourceDir = path.dirname(download.file_path);
+    try {
+      const remaining = fs.readdirSync(sourceDir);
+      if (remaining.length === 0) fs.rmdirSync(sourceDir);
+    } catch { /* non-critical cleanup */ }
+
+    db.prepare(
+      `UPDATE downloads SET file_path = ?, moved_to_library = 0, library_id = NULL, updated_at = datetime('now') WHERE id = ?`
+    ).run(targetPath, download.id);
+
+    res.json({ id: download.id, file_path: targetPath, moved_to_library: 0 });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to unmove file' });
   }
 });
 

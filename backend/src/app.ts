@@ -3,6 +3,7 @@ import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
 import downloadsRouter from './routes/downloads';
+import librariesRouter from './routes/libraries';
 import { testPlexConnection } from './services/plexClient';
 import { config } from './config';
 
@@ -13,6 +14,7 @@ export function createApp() {
   app.use(express.json());
 
   app.use('/api/downloads', downloadsRouter);
+  app.use('/api/libraries', librariesRouter);
 
   app.get('/api/config', async (_req, res) => {
     const plexConnected = await testPlexConnection();

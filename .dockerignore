@@ -11,3 +11,9 @@ backend/node_modules/
 frontend/node_modules/
 frontend/dist/
 backend/dist/
+backend/downloads/
+*.mkv
+*.mp4
+*.webm
+*.avi
+*.zip

@@ -1,13 +1,13 @@
 import axios from 'axios';
 import { config } from '../config';
 
-export async function triggerPlexScan(category: string): Promise<void> {
+export async function triggerPlexScan(category: string, plexSectionId?: number | null): Promise<void> {
   if (!config.plex.url || !config.plex.token) return;
 
-  const sectionId =
-    category === 'movies' ? config.plex.sectionMovies :
-    category === 'tv' ? config.plex.sectionTv :
-    null;
+  const sectionId = plexSectionId ??
+    (category === 'movies' ? config.plex.sectionMovies :
+     category === 'tv' ? config.plex.sectionTv :
+     null);
 
   if (!sectionId) return;
 

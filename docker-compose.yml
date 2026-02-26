@@ -4,7 +4,7 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - animedb-data:/data
+      - ./data:/data
       - ./downloads:/downloads
       - ./media:/media
     environment:
@@ -17,6 +17,3 @@ services:
       - PLEX_SECTION_MOVIES=${PLEX_SECTION_MOVIES:-1}
       - PLEX_SECTION_TV=${PLEX_SECTION_TV:-2}
     restart: unless-stopped
-
-volumes:
-  animedb-data:

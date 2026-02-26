@@ -91,6 +91,23 @@ describe('buildTargetPath', () => {
       path.join('/media', 'Movies', 'Bad Title', 'Bad Title.mkv')
     );
   });
+
+  it('builds movie path using a library base path', () => {
+    const result = buildTargetPath({ title: 'Film', category: 'movies' }, 'Anime Movies');
+    expect(result).toBe(
+      path.join('/media', 'Anime Movies', 'Film', 'Film.mkv')
+    );
+  });
+
+  it('builds TV path using a library base path', () => {
+    const result = buildTargetPath(
+      { title: 'Show', category: 'tv', season: 3, episode: 7 },
+      'Anime Series'
+    );
+    expect(result).toBe(
+      path.join('/media', 'Anime Series', 'Show', 'Season 03', 'Show - S03E07.mkv')
+    );
+  });
 });
 
 describe('moveToLibrary', () => {

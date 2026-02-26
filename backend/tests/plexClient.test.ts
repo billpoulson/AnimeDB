@@ -48,6 +48,18 @@ describe('triggerPlexScan', () => {
     await triggerPlexScan('other');
     expect(axios.get).not.toHaveBeenCalled();
   });
+
+  it('uses per-library plex section ID when provided', async () => {
+    vi.mocked(axios.get).mockResolvedValue({ status: 200 });
+    await triggerPlexScan('other', 42);
+
+    expect(axios.get).toHaveBeenCalledWith(
+      'http://plex:32400/library/sections/42/refresh',
+      expect.objectContaining({
+        headers: { 'X-Plex-Token': 'test-token' },
+      })
+    );
+  });
 });
 
 describe('testPlexConnection', () => {

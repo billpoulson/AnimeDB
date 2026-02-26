@@ -1,11 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getDownloads, getConfig, Download } from '../api/client';
+import { getDownloads, Download } from '../api/client';
 import DownloadForm from '../components/DownloadForm';
 import DownloadList from '../components/DownloadList';
 
 export default function Dashboard() {
   const [downloads, setDownloads] = useState<Download[]>([]);
-  const [plexConnected, setPlexConnected] = useState(false);
 
   const fetchDownloads = useCallback(async () => {
     try {
@@ -18,7 +17,6 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchDownloads();
-    getConfig().then((c) => setPlexConnected(c.plexConnected)).catch(() => {});
     const interval = setInterval(fetchDownloads, 2000);
     return () => clearInterval(interval);
   }, [fetchDownloads]);
@@ -38,14 +36,14 @@ export default function Dashboard() {
       {active.length > 0 && (
         <section>
           <h2 className="text-lg font-semibold mb-4">Active Downloads</h2>
-          <DownloadList downloads={active} onDelete={fetchDownloads} showLibraryStatus={plexConnected} />
+          <DownloadList downloads={active} onDelete={fetchDownloads} />
         </section>
       )}
 
       {recent.length > 0 && (
         <section>
           <h2 className="text-lg font-semibold mb-4">Recent</h2>
-          <DownloadList downloads={recent} onDelete={fetchDownloads} showLibraryStatus={plexConnected} />
+          <DownloadList downloads={recent} onDelete={fetchDownloads} />
         </section>
       )}
     </div>

@@ -16,9 +16,27 @@ export function sanitizeFilename(name: string): string {
     .trim();
 }
 
-export function buildTargetPath(info: MediaInfo): string {
+export function resolveLibraryPath(libraryPath: string): string {
+  if (path.isAbsolute(libraryPath)) return libraryPath;
+  return path.join(config.mediaPath, libraryPath);
+}
+
+export function buildTargetPath(info: MediaInfo, libraryBasePath?: string): string {
   const ext = `.${config.outputFormat}`;
   const safeTitle = sanitizeFilename(info.title);
+
+  if (libraryBasePath) {
+    const base = resolveLibraryPath(libraryBasePath);
+    switch (info.category) {
+      case 'tv': {
+        const s = String(info.season || 1).padStart(2, '0');
+        const e = String(info.episode || 1).padStart(2, '0');
+        return path.join(base, safeTitle, `Season ${s}`, `${safeTitle} - S${s}E${e}${ext}`);
+      }
+      default:
+        return path.join(base, safeTitle, `${safeTitle}${ext}`);
+    }
+  }
 
   switch (info.category) {
     case 'movies':
@@ -36,8 +54,8 @@ export function buildTargetPath(info: MediaInfo): string {
   }
 }
 
-export async function moveToLibrary(sourcePath: string, info: MediaInfo): Promise<string> {
-  const targetPath = buildTargetPath(info);
+export async function moveToLibrary(sourcePath: string, info: MediaInfo, libraryBasePath?: string): Promise<string> {
+  const targetPath = buildTargetPath(info, libraryBasePath);
   const targetDir = path.dirname(targetPath);
 
   fs.mkdirSync(targetDir, { recursive: true });

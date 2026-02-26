@@ -45,8 +45,24 @@ export async function cancelDownload(id: string): Promise<void> {
   await api.post(`/downloads/${id}/cancel`);
 }
 
-export async function moveToLibrary(id: string): Promise<void> {
-  await api.post(`/downloads/${id}/move`);
+export async function moveToLibrary(id: string, libraryId?: string): Promise<void> {
+  await api.post(`/downloads/${id}/move`, libraryId ? { library_id: libraryId } : {});
+}
+
+export async function unmoveFromLibrary(id: string): Promise<void> {
+  await api.post(`/downloads/${id}/unmove`);
+}
+
+export interface UpdateDownloadRequest {
+  category?: 'movies' | 'tv' | 'other';
+  title?: string;
+  season?: number | null;
+  episode?: number | null;
+}
+
+export async function updateDownload(id: string, data: UpdateDownloadRequest): Promise<Download> {
+  const res = await api.patch(`/downloads/${id}`, data);
+  return res.data;
 }
 
 export async function deleteDownload(id: string): Promise<void> {
@@ -55,5 +71,53 @@ export async function deleteDownload(id: string): Promise<void> {
 
 export async function getConfig(): Promise<{ outputFormat: string; plexConnected: boolean; plexUrl: string | null }> {
   const res = await api.get('/config');
+  return res.data;
+}
+
+// Libraries
+
+export interface Library {
+  id: string;
+  name: string;
+  path: string;
+  type: 'movies' | 'tv' | 'other';
+  plex_section_id: number | null;
+  created_at: string;
+}
+
+export interface ScannedFolder {
+  name: string;
+  path: string;
+  suggested_type: 'movies' | 'tv' | 'other';
+}
+
+export interface CreateLibraryRequest {
+  name: string;
+  path: string;
+  type?: 'movies' | 'tv' | 'other';
+  plex_section_id?: number | null;
+}
+
+export async function getLibraries(): Promise<Library[]> {
+  const res = await api.get('/libraries');
+  return res.data;
+}
+
+export async function createLibrary(data: CreateLibraryRequest): Promise<Library> {
+  const res = await api.post('/libraries', data);
+  return res.data;
+}
+
+export async function updateLibrary(id: string, data: Partial<CreateLibraryRequest>): Promise<Library> {
+  const res = await api.patch(`/libraries/${id}`, data);
+  return res.data;
+}
+
+export async function deleteLibrary(id: string): Promise<void> {
+  await api.delete(`/libraries/${id}`);
+}
+
+export async function scanForFolders(): Promise<ScannedFolder[]> {
+  const res = await api.get('/libraries/scan');
   return res.data;
 }

@@ -1,12 +1,11 @@
-import { useState } from 'react';
-import { Download, deleteDownload, moveToLibrary, cancelDownload } from '../api/client';
+import { useState, useEffect } from 'react';
+import { Download, Library, deleteDownload, moveToLibrary, unmoveFromLibrary, cancelDownload, updateDownload, getLibraries } from '../api/client';
 import ProgressBar from './ProgressBar';
 import VideoPlayer from './VideoPlayer';
 
 interface Props {
   downloads: Download[];
   onDelete: () => void;
-  showLibraryStatus?: boolean;
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -18,17 +17,66 @@ const STATUS_STYLES: Record<string, string> = {
   cancelled: 'bg-orange-600 text-orange-100',
 };
 
-export default function DownloadList({ downloads, onDelete, showLibraryStatus = false }: Props) {
+export default function DownloadList({ downloads, onDelete }: Props) {
   const [playing, setPlaying] = useState<Download | null>(null);
   const [movingIds, setMovingIds] = useState<Set<string>>(new Set());
+  const [libraries, setLibraries] = useState<Library[]>([]);
+  const [moveTargetId, setMoveTargetId] = useState<string | null>(null);
+  const [selectedLibrary, setSelectedLibrary] = useState<string>('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editCategory, setEditCategory] = useState<'movies' | 'tv' | 'other'>('other');
+  const [editSeason, setEditSeason] = useState('');
+  const [editEpisode, setEditEpisode] = useState('');
+  const [savingId, setSavingId] = useState<string | null>(null);
 
-  const handleMove = async (id: string) => {
-    setMovingIds((prev) => new Set(prev).add(id));
+  useEffect(() => {
+    getLibraries().then(setLibraries).catch(() => {});
+  }, []);
+
+  const startEditing = (dl: Download) => {
+    setEditingId(dl.id);
+    setEditCategory(dl.category as 'movies' | 'tv' | 'other');
+    setEditSeason(dl.season?.toString() || '');
+    setEditEpisode(dl.episode?.toString() || '');
+  };
+
+  const handleSaveCategory = async (id: string) => {
+    setSavingId(id);
     try {
-      await moveToLibrary(id);
+      await updateDownload(id, {
+        category: editCategory,
+        season: editCategory === 'tv' && editSeason ? parseInt(editSeason, 10) : null,
+        episode: editCategory === 'tv' && editEpisode ? parseInt(editEpisode, 10) : null,
+      });
+      setEditingId(null);
+      onDelete();
+    } catch (err) {
+      console.error('Failed to reclassify', err);
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const handleMove = async (id: string, libraryId?: string) => {
+    setMovingIds((prev) => new Set(prev).add(id));
+    setMoveTargetId(null);
+    try {
+      await moveToLibrary(id, libraryId);
       onDelete();
     } catch (err) {
       console.error('Failed to move', err);
+    } finally {
+      setMovingIds((prev) => { const s = new Set(prev); s.delete(id); return s; });
+    }
+  };
+
+  const handleUnmove = async (id: string) => {
+    setMovingIds((prev) => new Set(prev).add(id));
+    try {
+      await unmoveFromLibrary(id);
+      onDelete();
+    } catch (err) {
+      console.error('Failed to unmove', err);
     } finally {
       setMovingIds((prev) => { const s = new Set(prev); s.delete(id); return s; });
     }
@@ -98,35 +146,126 @@ export default function DownloadList({ downloads, onDelete, showLibraryStatus = 
               <p className="mt-2 text-xs text-red-400">{dl.error}</p>
             )}
 
+          {dl.status === 'completed' && (
+            <div className="mt-3">
+              {editingId === dl.id ? (
+                <div className="flex flex-wrap items-end gap-2">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-0.5">Category</label>
+                    <select
+                      value={editCategory}
+                      onChange={(e) => setEditCategory(e.target.value as 'movies' | 'tv' | 'other')}
+                      className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    >
+                      <option value="other">Other</option>
+                      <option value="movies">Movies</option>
+                      <option value="tv">TV</option>
+                    </select>
+                  </div>
+                  {editCategory === 'tv' && (
+                    <>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-0.5">Season</label>
+                        <input type="number" min="1" value={editSeason} onChange={(e) => setEditSeason(e.target.value)} placeholder="1" className="w-16 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-0.5">Episode</label>
+                        <input type="number" min="1" value={editEpisode} onChange={(e) => setEditEpisode(e.target.value)} placeholder="1" className="w-16 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                      </div>
+                    </>
+                  )}
+                  <button
+                    onClick={() => handleSaveCategory(dl.id)}
+                    disabled={savingId === dl.id}
+                    className="text-xs px-2.5 py-1 rounded bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white transition-colors"
+                  >
+                    {savingId === dl.id ? 'Saving...' : 'Save'}
+                  </button>
+                  <button
+                    onClick={() => setEditingId(null)}
+                    className="text-xs px-2.5 py-1 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => startEditing(dl)}
+                  className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-200 transition-colors"
+                >
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                  </svg>
+                  {dl.category}{dl.category === 'tv' && dl.season ? ` S${dl.season}` : ''}{dl.category === 'tv' && dl.episode ? `E${dl.episode}` : ''}
+                </button>
+              )}
+            </div>
+          )}
+
           {dl.status === 'completed' && dl.file_path && (
             <div className="mt-2 flex items-center gap-2">
-              {showLibraryStatus && (
-                dl.moved_to_library ? (
-                  <span className="inline-flex items-center gap-1 text-xs text-green-400 shrink-0">
-                    <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    In library
-                  </span>
-                ) : movingIds.has(dl.id) ? (
-                  <span className="inline-flex items-center gap-1.5 text-xs text-blue-400 shrink-0">
-                    <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                    Moving...
-                  </span>
-                ) : (
-                  <button
-                    onClick={() => handleMove(dl.id)}
-                    className="inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 transition-colors shrink-0"
+              {dl.moved_to_library ? (
+                <button
+                  onClick={() => handleUnmove(dl.id)}
+                  disabled={movingIds.has(dl.id)}
+                  className="inline-flex items-center gap-1 text-xs text-green-400 hover:text-orange-400 transition-colors shrink-0 disabled:opacity-50"
+                  title="Remove from library (move back to downloads)"
+                >
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  {movingIds.has(dl.id) ? 'Moving...' : 'In library'}
+                </button>
+              ) : movingIds.has(dl.id) ? (
+                <span className="inline-flex items-center gap-1.5 text-xs text-blue-400 shrink-0">
+                  <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Moving...
+                </span>
+              ) : moveTargetId === dl.id ? (
+                <div className="flex items-center gap-2 shrink-0">
+                  <select
+                    value={selectedLibrary}
+                    onChange={(e) => setSelectedLibrary(e.target.value)}
+                    className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   >
-                    <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
-                    </svg>
-                    Move to library
+                    <option value="">Default location</option>
+                    {libraries.map((lib) => (
+                      <option key={lib.id} value={lib.id}>{lib.name} ({lib.type})</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => handleMove(dl.id, selectedLibrary || undefined)}
+                    className="text-xs px-2 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+                  >
+                    Move
                   </button>
-                )
+                  <button
+                    onClick={() => setMoveTargetId(null)}
+                    className="text-xs px-2 py-1 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    if (libraries.length === 0) {
+                      handleMove(dl.id);
+                    } else {
+                      setMoveTargetId(dl.id);
+                      setSelectedLibrary('');
+                    }
+                  }}
+                  className="inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 transition-colors shrink-0"
+                >
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
+                  </svg>
+                  Move to library
+                </button>
               )}
               <span className="text-xs text-gray-600 truncate">{dl.file_path}</span>
             </div>

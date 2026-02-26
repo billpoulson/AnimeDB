@@ -21,14 +21,29 @@ export function initDb(dbPath: string): Database.Database {
       file_path TEXT,
       error TEXT,
       moved_to_library INTEGER DEFAULT 0,
+      library_id TEXT,
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now'))
     )
   `);
 
-  const columns = db.pragma('table_info(downloads)') as { name: string }[];
-  if (!columns.some((c) => c.name === 'moved_to_library')) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS libraries (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      path TEXT NOT NULL,
+      type TEXT NOT NULL DEFAULT 'other',
+      plex_section_id INTEGER,
+      created_at TEXT DEFAULT (datetime('now'))
+    )
+  `);
+
+  const dlCols = db.pragma('table_info(downloads)') as { name: string }[];
+  if (!dlCols.some((c) => c.name === 'moved_to_library')) {
     db.exec('ALTER TABLE downloads ADD COLUMN moved_to_library INTEGER DEFAULT 0');
+  }
+  if (!dlCols.some((c) => c.name === 'library_id')) {
+    db.exec('ALTER TABLE downloads ADD COLUMN library_id TEXT');
   }
   return db;
 }
