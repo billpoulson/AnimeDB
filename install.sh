@@ -21,9 +21,24 @@ if [ ! -f .env ] && [ -f .env.example ]; then
     echo "==> Created .env from .env.example (edit it to configure Plex integration)"
 fi
 
-echo "==> Starting AnimeDB with Docker Compose..."
-BUILD_SHA=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
+echo "==> Resolving build SHA..."
+BUILD_SHA=$(git rev-parse HEAD 2>/dev/null || true)
+if [ -z "$BUILD_SHA" ]; then
+    BUILD_SHA=$(curl -fsSL -H "Accept: application/vnd.github.v3.sha" \
+        "https://api.github.com/repos/${REPO}/commits/${BRANCH}" 2>/dev/null || echo "unknown")
+fi
+if [ -f .env ]; then
+    if grep -q "^BUILD_SHA=" .env; then
+        sed -i "s/^BUILD_SHA=.*/BUILD_SHA=${BUILD_SHA}/" .env
+    else
+        echo "BUILD_SHA=${BUILD_SHA}" >> .env
+    fi
+else
+    echo "BUILD_SHA=${BUILD_SHA}" > .env
+fi
 export BUILD_SHA
+
+echo "==> Starting AnimeDB with Docker Compose (SHA: ${BUILD_SHA})..."
 docker compose up --build -d
 
 echo ""

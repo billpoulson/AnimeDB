@@ -31,10 +31,29 @@ if ((-not (Test-Path .env)) -and (Test-Path .env.example)) {
     Write-Host "==> Created .env from .env.example (edit it to configure Plex integration)" -ForegroundColor Yellow
 }
 
-Write-Host "==> Starting AnimeDB with Docker Compose..." -ForegroundColor Cyan
+Write-Host "==> Resolving build SHA..." -ForegroundColor Cyan
 try { $sha = git rev-parse HEAD 2>&1 | Out-String } catch { $sha = "" }
-if (-not $sha -or $sha -match "fatal") { $sha = "unknown" }
-$env:BUILD_SHA = $sha.Trim()
+if (-not $sha -or $sha -match "fatal") {
+    try {
+        $apiUrl = "https://api.github.com/repos/$Repo/commits/$Branch"
+        $sha = (Invoke-RestMethod -Uri $apiUrl -Headers @{Accept="application/vnd.github.v3.sha"} -UseBasicParsing)
+    } catch { $sha = "unknown" }
+}
+$sha = "$sha".Trim()
+if (Test-Path .env) {
+    $envContent = Get-Content .env -Raw
+    if ($envContent -match "BUILD_SHA=") {
+        $envContent = $envContent -replace "BUILD_SHA=.*", "BUILD_SHA=$sha"
+    } else {
+        $envContent = $envContent.TrimEnd() + "`nBUILD_SHA=$sha`n"
+    }
+    Set-Content .env $envContent -NoNewline
+} else {
+    Set-Content .env "BUILD_SHA=$sha`n" -NoNewline
+}
+$env:BUILD_SHA = $sha
+
+Write-Host "==> Starting AnimeDB with Docker Compose (SHA: $sha)..." -ForegroundColor Cyan
 docker compose up --build -d
 
 Write-Host "`nDone! AnimeDB is running at http://localhost:3000" -ForegroundColor Green

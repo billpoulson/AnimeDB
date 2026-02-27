@@ -1,8 +1,6 @@
 import { config } from '../config';
-
-// nat-upnp-2 is a JS-only package with no type definitions
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const natUpnp = require('nat-upnp-2');
+// @ts-expect-error nat-upnp-2 has no type definitions
+import natUpnp from 'nat-upnp-2';
 
 const MAPPING_DESCRIPTION = 'AnimeDB';
 const MAPPING_TTL = 0; // 0 = permanent until removed
