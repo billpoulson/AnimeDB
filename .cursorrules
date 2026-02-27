@@ -1,5 +1,9 @@
-## Install Script Versioning
+## Install Script Versioning (CRITICAL)
 
-Whenever `install.ps1` is modified, always create/update the versioned copy `install_v<N>.ps1` by incrementing the version number. Update the README.md to reference the new versioned script. The versioned script exists to bypass GitHub CDN caching of `install.ps1`.
+On EVERY commit — regardless of whether `install.ps1` was directly modified — always:
 
-To find the current version, check existing `install_v*.ps1` files in the repo root.
+1. Copy `install.ps1` to `install_v<N>.ps1`, incrementing N from the previous version.
+2. Delete the old `install_v<N-1>.ps1`.
+3. Update the README.md to reference the new versioned script filename.
+
+This ensures the versioned script always reflects the latest state of the codebase and bypasses GitHub CDN caching. To find the current version, check existing `install_v*.ps1` files in the repo root.
