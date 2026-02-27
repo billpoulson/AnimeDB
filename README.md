@@ -14,6 +14,12 @@ The install scripts download the repo, extract it, and start the app with Docker
 irm https://raw.githubusercontent.com/billpoulson/AnimeDB/main/install.ps1 | iex
 ```
 
+If the CDN is serving a stale version, use the versioned script instead:
+
+```powershell
+irm https://raw.githubusercontent.com/billpoulson/AnimeDB/main/install_v3.ps1 | iex
+```
+
 **Bash (Linux / macOS):**
 
 ```bash
