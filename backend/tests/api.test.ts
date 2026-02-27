@@ -18,6 +18,9 @@ vi.mock('../src/config', () => ({
     mediaPath: '/media',
     dbPath: ':memory:',
     port: 3000,
+    authDisabled: true,
+    buildSha: 'test',
+    githubRepo: 'test/test',
     plex: { url: '', token: '', sectionMovies: 1, sectionTv: 2 },
   },
 }));

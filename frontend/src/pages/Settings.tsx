@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import {
   Library, ScannedFolder, CreateLibraryRequest,
   getLibraries, createLibrary, updateLibrary, deleteLibrary, scanForFolders, getConfig,
+  authChangePassword, getAuthStatus,
+  checkForUpdate, applyUpdate, type UpdateCheckResult,
 } from '../api/client';
 
 const TYPE_LABELS: Record<string, string> = { movies: 'Movies', tv: 'TV', other: 'Other' };
@@ -216,6 +218,193 @@ export default function Settings() {
           </div>
         </section>
       )}
+
+      <UpdateCheck />
+      <ChangePassword />
     </div>
+  );
+}
+
+function UpdateCheck() {
+  const [info, setInfo] = useState<UpdateCheckResult | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [updating, setUpdating] = useState(false);
+  const [updateMsg, setUpdateMsg] = useState('');
+  const [updateErr, setUpdateErr] = useState('');
+
+  const check = async () => {
+    setChecking(true);
+    setUpdateErr('');
+    try {
+      const result = await checkForUpdate();
+      setInfo(result);
+      if (result.updateInProgress) setUpdating(true);
+    } catch (err: any) {
+      setUpdateErr(err.response?.data?.error || 'Failed to check for updates');
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  useEffect(() => { check(); }, []);
+
+  const handleUpdate = async () => {
+    setUpdating(true);
+    setUpdateMsg('');
+    setUpdateErr('');
+    try {
+      const result = await applyUpdate();
+      setUpdateMsg(result.message);
+    } catch (err: any) {
+      setUpdateErr(err.response?.data?.error || 'Update failed');
+      setUpdating(false);
+    }
+  };
+
+  return (
+    <section>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold">Updates</h2>
+        <button
+          onClick={check}
+          disabled={checking}
+          className="text-xs px-3 py-1.5 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors disabled:opacity-50"
+        >
+          {checking ? 'Checking...' : 'Check now'}
+        </button>
+      </div>
+
+      <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-3">
+        {info && (
+          <>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-gray-400 w-28 shrink-0">Current build</span>
+              <code className="text-xs bg-gray-800 rounded px-2 py-0.5 text-gray-300">
+                {info.currentSha === 'unknown' ? 'unknown' : info.currentSha.slice(0, 7)}
+              </code>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-gray-400 w-28 shrink-0">Latest</span>
+              <code className="text-xs bg-gray-800 rounded px-2 py-0.5 text-gray-300">
+                {info.remoteSha.slice(0, 7)}
+              </code>
+              <span className="text-xs text-gray-500">{info.remoteMessage}</span>
+            </div>
+
+            {info.updateAvailable ? (
+              <div className="flex items-center gap-3 pt-1">
+                <span className="text-sm text-yellow-400">Update available</span>
+                <button
+                  onClick={handleUpdate}
+                  disabled={updating}
+                  className="text-xs px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-500 text-white transition-colors disabled:opacity-50"
+                >
+                  {updating ? 'Updating...' : 'Install update'}
+                </button>
+              </div>
+            ) : (
+              <p className="text-sm text-green-400 pt-1">
+                {info.currentSha === 'unknown' ? 'Build SHA not set -- rebuild with BUILD_SHA to enable update tracking.' : 'Up to date'}
+              </p>
+            )}
+          </>
+        )}
+
+        {updateMsg && <p className="text-xs text-blue-400">{updateMsg}</p>}
+        {updating && updateMsg && (
+          <p className="text-xs text-gray-400">
+            The app is rebuilding and will restart automatically. This page will reconnect when ready.
+          </p>
+        )}
+        {updateErr && <p className="text-xs text-red-400">{updateErr}</p>}
+      </div>
+    </section>
+  );
+}
+
+function ChangePassword() {
+  const [authRequired, setAuthRequired] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [pwError, setPwError] = useState('');
+  const [pwSuccess, setPwSuccess] = useState('');
+  const [pwLoading, setPwLoading] = useState(false);
+
+  useEffect(() => {
+    getAuthStatus().then((s) => setAuthRequired(s.authRequired)).catch(() => {});
+  }, []);
+
+  if (!authRequired) return null;
+
+  const handleChangePassword = async () => {
+    setPwError('');
+    setPwSuccess('');
+
+    if (newPassword !== confirmPassword) {
+      setPwError('New passwords do not match');
+      return;
+    }
+    if (newPassword.length < 4) {
+      setPwError('New password must be at least 4 characters');
+      return;
+    }
+
+    setPwLoading(true);
+    try {
+      await authChangePassword(currentPassword, newPassword);
+      setPwSuccess('Password changed successfully');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err: any) {
+      setPwError(err.response?.data?.error || 'Failed to change password');
+    } finally {
+      setPwLoading(false);
+    }
+  };
+
+  return (
+    <section>
+      <h2 className="text-lg font-semibold mb-4">Change Password</h2>
+      <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-3 max-w-sm">
+        <div>
+          <label className="block text-xs text-gray-500 mb-0.5">Current Password</label>
+          <input
+            type="password"
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-gray-500 mb-0.5">New Password</label>
+          <input
+            type="password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-gray-500 mb-0.5">Confirm New Password</label>
+          <input
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          />
+        </div>
+        {pwError && <p className="text-xs text-red-400">{pwError}</p>}
+        {pwSuccess && <p className="text-xs text-green-400">{pwSuccess}</p>}
+        <button
+          onClick={handleChangePassword}
+          disabled={pwLoading}
+          className="text-sm px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50"
+        >
+          {pwLoading ? 'Saving...' : 'Change Password'}
+        </button>
+      </div>
+    </section>
   );
 }

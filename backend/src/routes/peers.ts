@@ -57,6 +57,57 @@ router.post('/', async (req: Request, res: Response) => {
   res.status(201).json({ id, name: name.trim(), url: cleanUrl, instance_id: remoteInstanceId });
 });
 
+router.post('/connect', async (req: Request, res: Response) => {
+  const { connectionString } = req.body;
+  if (!connectionString || typeof connectionString !== 'string') {
+    return res.status(400).json({ error: 'connectionString is required' });
+  }
+
+  const prefix = 'adb-connect:';
+  const raw = connectionString.startsWith(prefix)
+    ? connectionString.slice(prefix.length)
+    : connectionString;
+
+  let parsed: { url?: string; name?: string; key?: string };
+  try {
+    parsed = JSON.parse(Buffer.from(raw, 'base64').toString('utf-8'));
+  } catch {
+    return res.status(400).json({ error: 'Invalid connection string' });
+  }
+
+  const { url, name, key } = parsed;
+  if (!url || !name || !key) {
+    return res.status(400).json({ error: 'Connection string missing required fields' });
+  }
+
+  const cleanUrl = url.replace(/\/+$/, '');
+  let remoteInstanceId: string | null = null;
+
+  try {
+    const probe = await axios.get(`${cleanUrl}/api/federation/library`, {
+      headers: { Authorization: `Bearer ${key}` },
+      timeout: 10000,
+    });
+    if (!probe.data?.instanceName) {
+      return res.status(400).json({ error: 'Remote responded but does not look like an AnimeDB instance' });
+    }
+    remoteInstanceId = probe.data.instanceId || null;
+  } catch (err: any) {
+    const msg = err.response?.status === 401
+      ? 'Invalid API key (401 from remote)'
+      : `Cannot reach remote instance: ${err.message}`;
+    return res.status(400).json({ error: msg });
+  }
+
+  const id = crypto.randomUUID();
+  const db = getDb();
+  db.prepare(
+    "INSERT INTO peers (id, name, url, api_key, instance_id, last_seen) VALUES (?, ?, ?, ?, ?, datetime('now'))"
+  ).run(id, name, cleanUrl, key, remoteInstanceId);
+
+  res.status(201).json({ id, name, url: cleanUrl, instance_id: remoteInstanceId });
+});
+
 router.delete('/:id', (req: Request, res: Response) => {
   const db = getDb();
   const result = db.prepare('DELETE FROM peers WHERE id = ?').run(req.params.id);

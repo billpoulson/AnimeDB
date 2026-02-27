@@ -6,6 +6,7 @@ vi.mock('axios');
 
 vi.mock('../src/config', () => ({
   config: {
+    authDisabled: true,
     plex: {
       url: 'http://plex:32400',
       token: 'test-token',

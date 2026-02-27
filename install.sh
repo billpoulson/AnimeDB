@@ -22,7 +22,9 @@ if [ ! -f .env ] && [ -f .env.example ]; then
 fi
 
 echo "==> Starting AnimeDB with Docker Compose..."
-docker compose up -d
+BUILD_SHA=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
+export BUILD_SHA
+docker compose up --build -d
 
 echo ""
 echo "Done! AnimeDB is running at http://localhost:3000"

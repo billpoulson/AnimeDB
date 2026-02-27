@@ -4,6 +4,7 @@ vi.mock('../src/config', () => ({
   config: {
     port: 3000,
     externalUrl: '',
+    authDisabled: true,
   },
 }));
 

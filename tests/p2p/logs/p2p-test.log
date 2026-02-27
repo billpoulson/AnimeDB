@@ -1,0 +1,937 @@
+
+========================================
+  AnimeDB P2P Integration Test
+  Fri Feb 27 16:28:52 UTC 2026
+========================================
+
+[1] Waiting for nodes...
+  NodeA is ready
+  NodeB is ready
+  NodeC is ready
+
+[2] Verifying instance identity...
+
+──────────────────────────────────────
+REQUEST #1  16:28:52
+GET http://nodea:3000/api/networking
+RESPONSE: HTTP 200
+{
+  "instanceId": "ab457844-d166-4a7d-ad83-947ed6a80fd0",
+  "instanceName": "NodeA",
+  "externalUrl": "http://nodea:3000",
+  "upnp": {
+    "active": false,
+    "externalIp": null,
+    "error": null
+  }
+}
+──────────────────────────────────────
+
+──────────────────────────────────────
+REQUEST #1  16:28:52
+GET http://nodeb:3000/api/networking
+RESPONSE: HTTP 200
+{
+  "instanceId": "6babcd1d-ac5e-4892-b242-538d21164eaa",
+  "instanceName": "NodeB",
+  "externalUrl": "http://nodeb:3000",
+  "upnp": {
+    "active": false,
+    "externalIp": null,
+    "error": null
+  }
+}
+──────────────────────────────────────
+
+──────────────────────────────────────
+REQUEST #1  16:28:52
+GET http://nodec:3000/api/networking
+RESPONSE: HTTP 200
+{
+  "instanceId": "29902e36-ca21-4551-aa5b-d68fed5a37b6",
+  "instanceName": "NodeC",
+  "externalUrl": "http://nodec:3000",
+  "upnp": {
+    "active": false,
+    "externalIp": null,
+    "error": null
+  }
+}
+──────────────────────────────────────
+  PASS: NodeA instance name
+  PASS: NodeB instance name
+  PASS: NodeC instance name
+  PASS: NodeA instance ID
+  PASS: NodeB instance ID
+  PASS: NodeC instance ID
+  PASS: NodeA external URL
+  PASS: NodeB external URL
+  PASS: NodeC external URL
+  PASS: All instance IDs are unique
+
+[3] Creating API keys...
+
+──────────────────────────────────────
+REQUEST #1  16:28:52
+POST http://nodea:3000/api/keys
+  Header: Content-Type: application/json
+  Body: {"label":"test-key-for-B"}
+RESPONSE: HTTP 201
+{
+  "id": "6fab7824-de24-4275-a5a3-3e151ac571bf",
+  "label": "test-key-for-B",
+  "key": "adb_b3bb14a13b48189e7233d2712661ef758484984a70b31e7c6dc092291644f4a8"
+}
+──────────────────────────────────────
+  PASS: NodeA key generated
+
+──────────────────────────────────────
+REQUEST #1  16:28:52
+POST http://nodeb:3000/api/keys
+  Header: Content-Type: application/json
+  Body: {"label":"test-key-for-A"}
+RESPONSE: HTTP 201
+{
+  "id": "660dbd66-76b1-4cba-9271-51354b43d40b",
+  "label": "test-key-for-A",
+  "key": "adb_a7aa9b72102ed60eed73ee9831f0b5a038a6a5af392bcc081f72cde0e92cec12"
+}
+──────────────────────────────────────
+  PASS: NodeB key generated
+
+──────────────────────────────────────
+REQUEST #1  16:28:52
+GET http://nodea:3000/api/keys
+RESPONSE: HTTP 200
+[
+  {
+    "id": "6fab7824-de24-4275-a5a3-3e151ac571bf",
+    "label": "test-key-for-B",
+    "created_at": "2026-02-27 16:28:52"
+  }
+]
+──────────────────────────────────────
+  PASS: NodeA has 1 key listed
+  PASS: Listed key does not expose raw key
+
+[4] Testing federation auth...
+
+──────────────────────────────────────
+REQUEST #1  16:28:52
+GET http://nodea:3000/api/federation/library
+RESPONSE: HTTP 401
+{
+  "error": "Missing or invalid Authorization header"
+}
+──────────────────────────────────────
+  PASS: No auth returns 401
+
+──────────────────────────────────────
+REQUEST #1  16:28:52
+GET http://nodea:3000/api/federation/library
+  Header: Authorization: Bearer bad_key
+RESPONSE: HTTP 401
+{
+  "error": "Invalid API key"
+}
+──────────────────────────────────────
+  PASS: Bad key returns 401
+
+──────────────────────────────────────
+REQUEST #1  16:28:52
+GET http://nodea:3000/api/federation/library
+  Header: Authorization: Bearer adb_b3bb14a13b48189e7233d2712661ef758484984a70b31e7c6dc092291644f4a8
+RESPONSE: HTTP 200
+{
+  "instanceId": "ab457844-d166-4a7d-ad83-947ed6a80fd0",
+  "instanceName": "NodeA",
+  "items": []
+}
+──────────────────────────────────────
+  PASS: Valid key returns 200
+
+[5] Checking federation library response...
+
+──────────────────────────────────────
+REQUEST #1  16:28:53
+GET http://nodea:3000/api/federation/library
+  Header: Authorization: Bearer adb_b3bb14a13b48189e7233d2712661ef758484984a70b31e7c6dc092291644f4a8
+RESPONSE: HTTP 200
+{
+  "instanceId": "ab457844-d166-4a7d-ad83-947ed6a80fd0",
+  "instanceName": "NodeA",
+  "items": []
+}
+──────────────────────────────────────
+  PASS: Federation returns instance name
+  PASS: Federation returns instance ID
+  PASS: Library is empty initially
+
+[6] Adding peers...
+
+──────────────────────────────────────
+REQUEST #1  16:28:53
+POST http://nodeb:3000/api/peers
+  Header: Content-Type: application/json
+  Body: {"name":"NodeA","url":"http://nodea:3000","api_key":"adb_b3bb14a13b48189e7233d2712661ef758484984a70b31e7c6dc092291644f4a8"}
+RESPONSE: HTTP 201
+{
+  "id": "41849f29-b051-4570-a8b8-9572355f8183",
+  "name": "NodeA",
+  "url": "http://nodea:3000",
+  "instance_id": "ab457844-d166-4a7d-ad83-947ed6a80fd0"
+}
+──────────────────────────────────────
+  PASS: Peer A added on B
+  PASS: Peer stores NodeA's instance ID
+
+──────────────────────────────────────
+REQUEST #1  16:28:53
+POST http://nodea:3000/api/peers
+  Header: Content-Type: application/json
+  Body: {"name":"NodeB","url":"http://nodeb:3000","api_key":"adb_a7aa9b72102ed60eed73ee9831f0b5a038a6a5af392bcc081f72cde0e92cec12"}
+RESPONSE: HTTP 201
+{
+  "id": "a21677a8-a242-435a-b9a3-71f9b44d0e78",
+  "name": "NodeB",
+  "url": "http://nodeb:3000",
+  "instance_id": "6babcd1d-ac5e-4892-b242-538d21164eaa"
+}
+──────────────────────────────────────
+  PASS: Peer B added on A
+  PASS: Peer stores NodeB's instance ID
+
+[7] Browsing peer library...
+
+──────────────────────────────────────
+REQUEST #1  16:28:53
+GET http://nodeb:3000/api/peers/41849f29-b051-4570-a8b8-9572355f8183/library
+RESPONSE: HTTP 200
+{
+  "instanceId": "ab457844-d166-4a7d-ad83-947ed6a80fd0",
+  "instanceName": "NodeA",
+  "items": []
+}
+──────────────────────────────────────
+  PASS: Browse returns NodeA's name
+  PASS: Browse returns 0 items (empty library)
+
+[8] Verifying peer listings...
+
+──────────────────────────────────────
+REQUEST #1  16:28:53
+GET http://nodeb:3000/api/peers
+RESPONSE: HTTP 200
+[
+  {
+    "id": "41849f29-b051-4570-a8b8-9572355f8183",
+    "name": "NodeA",
+    "url": "http://nodea:3000",
+    "instance_id": "ab457844-d166-4a7d-ad83-947ed6a80fd0",
+    "last_seen": "2026-02-27 16:28:53",
+    "created_at": "2026-02-27 16:28:53"
+  }
+]
+──────────────────────────────────────
+  PASS: NodeB has 1 peer
+  PASS: Peer has instance_id
+  PASS: Peer has last_seen
+  PASS: Peer listing hides api_key
+
+[9] Testing announce...
+
+──────────────────────────────────────
+REQUEST #1  16:28:53
+POST http://nodeb:3000/api/federation/announce
+  Header: Authorization: Bearer adb_a7aa9b72102ed60eed73ee9831f0b5a038a6a5af392bcc081f72cde0e92cec12
+  Header: Content-Type: application/json
+  Body: {"instanceId":"ab457844-d166-4a7d-ad83-947ed6a80fd0","url":"http://nodea-new:9999"}
+RESPONSE: HTTP 200
+{
+  "updated": true
+}
+──────────────────────────────────────
+  PASS: Announce updates peer URL
+
+──────────────────────────────────────
+REQUEST #1  16:28:53
+GET http://nodeb:3000/api/peers
+RESPONSE: HTTP 200
+[
+  {
+    "id": "41849f29-b051-4570-a8b8-9572355f8183",
+    "name": "NodeA",
+    "url": "http://nodea-new:9999",
+    "instance_id": "ab457844-d166-4a7d-ad83-947ed6a80fd0",
+    "last_seen": "2026-02-27 16:28:53",
+    "created_at": "2026-02-27 16:28:53"
+  }
+]
+──────────────────────────────────────
+  PASS: Peer URL updated after announce
+
+──────────────────────────────────────
+REQUEST #1  16:28:53
+POST http://nodeb:3000/api/federation/announce
+  Header: Authorization: Bearer adb_a7aa9b72102ed60eed73ee9831f0b5a038a6a5af392bcc081f72cde0e92cec12
+  Header: Content-Type: application/json
+  Body: {"instanceId":"ab457844-d166-4a7d-ad83-947ed6a80fd0","url":"http://nodea:3000"}
+RESPONSE: HTTP 200
+{
+  "updated": true
+}
+──────────────────────────────────────
+
+──────────────────────────────────────
+REQUEST #2  16:28:54
+GET http://nodeb:3000/api/peers
+RESPONSE: HTTP 200
+[
+  {
+    "id": "41849f29-b051-4570-a8b8-9572355f8183",
+    "name": "NodeA",
+    "url": "http://nodea:3000",
+    "instance_id": "ab457844-d166-4a7d-ad83-947ed6a80fd0",
+    "last_seen": "2026-02-27 16:28:53",
+    "created_at": "2026-02-27 16:28:53"
+  }
+]
+──────────────────────────────────────
+  PASS: Peer URL restored
+
+[10] Testing resolve...
+
+──────────────────────────────────────
+REQUEST #2  16:28:54
+GET http://nodea:3000/api/federation/resolve/6babcd1d-ac5e-4892-b242-538d21164eaa
+  Header: Authorization: Bearer adb_b3bb14a13b48189e7233d2712661ef758484984a70b31e7c6dc092291644f4a8
+RESPONSE: HTTP 200
+{
+  "instanceId": "6babcd1d-ac5e-4892-b242-538d21164eaa",
+  "name": "NodeB",
+  "url": "http://nodeb:3000",
+  "lastSeen": "2026-02-27 16:28:53"
+}
+──────────────────────────────────────
+  PASS: Resolve returns NodeB's URL
+  PASS: Resolve returns NodeB's name
+
+[11] Testing networking endpoint...
+
+──────────────────────────────────────
+REQUEST #2  16:28:54
+GET http://nodea:3000/api/networking
+RESPONSE: HTTP 200
+{
+  "instanceId": "ab457844-d166-4a7d-ad83-947ed6a80fd0",
+  "instanceName": "NodeA",
+  "externalUrl": "http://nodea:3000",
+  "upnp": {
+    "active": false,
+    "externalIp": null,
+    "error": null
+  }
+}
+──────────────────────────────────────
+  PASS: Networking returns instance ID
+  PASS: Networking returns external URL
+
+[12] Testing external URL override...
+
+──────────────────────────────────────
+REQUEST #2  16:28:54
+PUT http://nodea:3000/api/networking/external-url
+  Header: Content-Type: application/json
+  Body: {"url":"http://custom.example.com:3000"}
+RESPONSE: HTTP 200
+{
+  "externalUrl": "http://custom.example.com:3000"
+}
+──────────────────────────────────────
+  PASS: External URL set
+
+──────────────────────────────────────
+REQUEST #2  16:28:54
+PUT http://nodea:3000/api/networking/external-url
+  Header: Content-Type: application/json
+  Body: {"url":null}
+RESPONSE: HTTP 200
+{
+  "externalUrl": null
+}
+──────────────────────────────────────
+  PASS: External URL cleared
+
+──────────────────────────────────────
+REQUEST #2  16:28:54
+PUT http://nodea:3000/api/networking/external-url
+  Header: Content-Type: application/json
+  Body: {"url":"http://nodea:3000"}
+RESPONSE: HTTP 200
+{
+  "externalUrl": "http://nodea:3000"
+}
+──────────────────────────────────────
+
+[13] Testing key revocation...
+
+──────────────────────────────────────
+REQUEST #3  16:28:54
+DELETE http://nodea:3000/api/keys/6fab7824-de24-4275-a5a3-3e151ac571bf
+RESPONSE: HTTP 204
+──────────────────────────────────────
+
+──────────────────────────────────────
+REQUEST #4  16:28:54
+GET http://nodea:3000/api/federation/library
+  Header: Authorization: Bearer adb_b3bb14a13b48189e7233d2712661ef758484984a70b31e7c6dc092291644f4a8
+RESPONSE: HTTP 401
+{
+  "error": "Invalid API key"
+}
+──────────────────────────────────────
+  PASS: Revoked key returns 401
+
+──────────────────────────────────────
+REQUEST #4  16:28:54
+POST http://nodea:3000/api/keys
+  Header: Content-Type: application/json
+  Body: {"label":"replacement-key"}
+RESPONSE: HTTP 201
+{
+  "id": "0e14a535-7256-43e1-86e8-d3ec9e003761",
+  "label": "replacement-key",
+  "key": "adb_879d1f786ae971d47d56e5a32ca9e20e422a29439457ae534b14b867acd2d300"
+}
+──────────────────────────────────────
+  PASS: Replacement key created
+
+[14] Testing peer deletion...
+
+──────────────────────────────────────
+REQUEST #4  16:28:54
+DELETE http://nodeb:3000/api/peers/41849f29-b051-4570-a8b8-9572355f8183
+RESPONSE: HTTP 204
+──────────────────────────────────────
+  PASS: Peer deleted returns 204
+
+──────────────────────────────────────
+REQUEST #4  16:28:54
+GET http://nodeb:3000/api/peers
+RESPONSE: HTTP 200
+[]
+──────────────────────────────────────
+  PASS: NodeB has 0 peers after delete
+
+[15] Setting up 3-node mesh...
+
+──────────────────────────────────────
+REQUEST #4  16:28:54
+DELETE http://nodea:3000/api/peers/a21677a8-a242-435a-b9a3-71f9b44d0e78
+RESPONSE: HTTP 204
+──────────────────────────────────────
+
+──────────────────────────────────────
+REQUEST #5  16:28:54
+POST http://nodea:3000/api/keys
+  Header: Content-Type: application/json
+  Body: {"label":"mesh-key"}
+RESPONSE: HTTP 201
+{
+  "id": "b51f3dd9-96d8-4dcc-aa73-9cd51f3eb97d",
+  "label": "mesh-key",
+  "key": "adb_8d6f9651fbf5385b8473fcddc95458dd14799ea028c80daf2f484a600e515ab9"
+}
+──────────────────────────────────────
+
+──────────────────────────────────────
+REQUEST #5  16:28:54
+POST http://nodeb:3000/api/keys
+  Header: Content-Type: application/json
+  Body: {"label":"mesh-key"}
+RESPONSE: HTTP 201
+{
+  "id": "f347aae9-066e-4a50-be06-77c66203e045",
+  "label": "mesh-key",
+  "key": "adb_cf3b4a6b2deef1cf6c026fcacfe02aea4e7915ef4028d38d499efcb8c233474d"
+}
+──────────────────────────────────────
+
+──────────────────────────────────────
+REQUEST #5  16:28:55
+POST http://nodec:3000/api/keys
+  Header: Content-Type: application/json
+  Body: {"label":"mesh-key"}
+RESPONSE: HTTP 201
+{
+  "id": "f356c9f1-fe8c-4dd9-a1fc-86974caa4954",
+  "label": "mesh-key",
+  "key": "adb_71b79427fb53b20dd60f58626e326c5dea1997c1b463f8b7b014ce713b0abad6"
+}
+──────────────────────────────────────
+  PASS: Mesh key A created
+  PASS: Mesh key B created
+  PASS: Mesh key C created
+
+──────────────────────────────────────
+REQUEST #5  16:28:55
+POST http://nodea:3000/api/peers
+  Header: Content-Type: application/json
+  Body: {"name":"NodeB","url":"http://nodeb:3000","api_key":"adb_cf3b4a6b2deef1cf6c026fcacfe02aea4e7915ef4028d38d499efcb8c233474d"}
+RESPONSE: HTTP 201
+{
+  "id": "198822cf-8671-4a5e-87f6-8109f44ace69",
+  "name": "NodeB",
+  "url": "http://nodeb:3000",
+  "instance_id": "6babcd1d-ac5e-4892-b242-538d21164eaa"
+}
+──────────────────────────────────────
+
+──────────────────────────────────────
+REQUEST #5  16:28:55
+POST http://nodea:3000/api/peers
+  Header: Content-Type: application/json
+  Body: {"name":"NodeC","url":"http://nodec:3000","api_key":"adb_71b79427fb53b20dd60f58626e326c5dea1997c1b463f8b7b014ce713b0abad6"}
+RESPONSE: HTTP 201
+{
+  "id": "4e5b4bb4-00e4-4d96-9679-295246d3bae6",
+  "name": "NodeC",
+  "url": "http://nodec:3000",
+  "instance_id": "29902e36-ca21-4551-aa5b-d68fed5a37b6"
+}
+──────────────────────────────────────
+  PASS: A linked to B
+  PASS: A linked to C
+
+──────────────────────────────────────
+REQUEST #5  16:28:55
+POST http://nodeb:3000/api/peers
+  Header: Content-Type: application/json
+  Body: {"name":"NodeA","url":"http://nodea:3000","api_key":"adb_8d6f9651fbf5385b8473fcddc95458dd14799ea028c80daf2f484a600e515ab9"}
+RESPONSE: HTTP 201
+{
+  "id": "c82f9827-3d49-4ab0-b9e5-e40adcda27cc",
+  "name": "NodeA",
+  "url": "http://nodea:3000",
+  "instance_id": "ab457844-d166-4a7d-ad83-947ed6a80fd0"
+}
+──────────────────────────────────────
+
+──────────────────────────────────────
+REQUEST #5  16:28:55
+POST http://nodeb:3000/api/peers
+  Header: Content-Type: application/json
+  Body: {"name":"NodeC","url":"http://nodec:3000","api_key":"adb_71b79427fb53b20dd60f58626e326c5dea1997c1b463f8b7b014ce713b0abad6"}
+RESPONSE: HTTP 201
+{
+  "id": "ab266467-d8d9-4877-98c7-2f21f789236e",
+  "name": "NodeC",
+  "url": "http://nodec:3000",
+  "instance_id": "29902e36-ca21-4551-aa5b-d68fed5a37b6"
+}
+──────────────────────────────────────
+  PASS: B linked to A
+  PASS: B linked to C
+
+──────────────────────────────────────
+REQUEST #5  16:28:55
+POST http://nodec:3000/api/peers
+  Header: Content-Type: application/json
+  Body: {"name":"NodeA","url":"http://nodea:3000","api_key":"adb_8d6f9651fbf5385b8473fcddc95458dd14799ea028c80daf2f484a600e515ab9"}
+RESPONSE: HTTP 201
+{
+  "id": "36b01a08-0e0a-43fe-985d-2d7243eac2e8",
+  "name": "NodeA",
+  "url": "http://nodea:3000",
+  "instance_id": "ab457844-d166-4a7d-ad83-947ed6a80fd0"
+}
+──────────────────────────────────────
+
+──────────────────────────────────────
+REQUEST #5  16:28:55
+POST http://nodec:3000/api/peers
+  Header: Content-Type: application/json
+  Body: {"name":"NodeB","url":"http://nodeb:3000","api_key":"adb_cf3b4a6b2deef1cf6c026fcacfe02aea4e7915ef4028d38d499efcb8c233474d"}
+RESPONSE: HTTP 201
+{
+  "id": "d7eef93b-1da8-4f72-b11f-7d20412bff1e",
+  "name": "NodeB",
+  "url": "http://nodeb:3000",
+  "instance_id": "6babcd1d-ac5e-4892-b242-538d21164eaa"
+}
+──────────────────────────────────────
+  PASS: C linked to A
+  PASS: C linked to B
+
+──────────────────────────────────────
+REQUEST #5  16:28:55
+GET http://nodea:3000/api/peers
+RESPONSE: HTTP 200
+[
+  {
+    "id": "198822cf-8671-4a5e-87f6-8109f44ace69",
+    "name": "NodeB",
+    "url": "http://nodeb:3000",
+    "instance_id": "6babcd1d-ac5e-4892-b242-538d21164eaa",
+    "last_seen": "2026-02-27 16:28:55",
+    "created_at": "2026-02-27 16:28:55"
+  },
+  {
+    "id": "4e5b4bb4-00e4-4d96-9679-295246d3bae6",
+    "name": "NodeC",
+    "url": "http://nodec:3000",
+    "instance_id": "29902e36-ca21-4551-aa5b-d68fed5a37b6",
+    "last_seen": "2026-02-27 16:28:55",
+    "created_at": "2026-02-27 16:28:55"
+  }
+]
+──────────────────────────────────────
+
+──────────────────────────────────────
+REQUEST #5  16:28:55
+GET http://nodeb:3000/api/peers
+RESPONSE: HTTP 200
+[
+  {
+    "id": "c82f9827-3d49-4ab0-b9e5-e40adcda27cc",
+    "name": "NodeA",
+    "url": "http://nodea:3000",
+    "instance_id": "ab457844-d166-4a7d-ad83-947ed6a80fd0",
+    "last_seen": "2026-02-27 16:28:55",
+    "created_at": "2026-02-27 16:28:55"
+  },
+  {
+    "id": "ab266467-d8d9-4877-98c7-2f21f789236e",
+    "name": "NodeC",
+    "url": "http://nodec:3000",
+    "instance_id": "29902e36-ca21-4551-aa5b-d68fed5a37b6",
+    "last_seen": "2026-02-27 16:28:55",
+    "created_at": "2026-02-27 16:28:55"
+  }
+]
+──────────────────────────────────────
+
+──────────────────────────────────────
+REQUEST #5  16:28:55
+GET http://nodec:3000/api/peers
+RESPONSE: HTTP 200
+[
+  {
+    "id": "36b01a08-0e0a-43fe-985d-2d7243eac2e8",
+    "name": "NodeA",
+    "url": "http://nodea:3000",
+    "instance_id": "ab457844-d166-4a7d-ad83-947ed6a80fd0",
+    "last_seen": "2026-02-27 16:28:55",
+    "created_at": "2026-02-27 16:28:55"
+  },
+  {
+    "id": "d7eef93b-1da8-4f72-b11f-7d20412bff1e",
+    "name": "NodeB",
+    "url": "http://nodeb:3000",
+    "instance_id": "6babcd1d-ac5e-4892-b242-538d21164eaa",
+    "last_seen": "2026-02-27 16:28:55",
+    "created_at": "2026-02-27 16:28:55"
+  }
+]
+──────────────────────────────────────
+  PASS: A has 2 peers
+  PASS: B has 2 peers
+  PASS: C has 2 peers
+
+──────────────────────────────────────
+REQUEST #5  16:28:55
+GET http://nodea:3000/api/peers/4e5b4bb4-00e4-4d96-9679-295246d3bae6/library
+RESPONSE: HTTP 200
+{
+  "instanceId": "29902e36-ca21-4551-aa5b-d68fed5a37b6",
+  "instanceName": "NodeC",
+  "items": []
+}
+──────────────────────────────────────
+  PASS: A can browse C's library
+
+[16] Simulating node offline + address change...
+
+──────────────────────────────────────
+REQUEST #5  16:28:55
+PUT http://nodec:3000/api/networking/external-url
+  Header: Content-Type: application/json
+  Body: {"url":"http://nodec-new:5000"}
+RESPONSE: HTTP 200
+{
+  "externalUrl": "http://nodec-new:5000"
+}
+──────────────────────────────────────
+
+──────────────────────────────────────
+REQUEST #6  16:28:56
+GET http://nodea:3000/api/peers
+RESPONSE: HTTP 200
+[
+  {
+    "id": "198822cf-8671-4a5e-87f6-8109f44ace69",
+    "name": "NodeB",
+    "url": "http://nodeb:3000",
+    "instance_id": "6babcd1d-ac5e-4892-b242-538d21164eaa",
+    "last_seen": "2026-02-27 16:28:55",
+    "created_at": "2026-02-27 16:28:55"
+  },
+  {
+    "id": "4e5b4bb4-00e4-4d96-9679-295246d3bae6",
+    "name": "NodeC",
+    "url": "http://nodec-new:5000",
+    "instance_id": "29902e36-ca21-4551-aa5b-d68fed5a37b6",
+    "last_seen": "2026-02-27 16:28:55",
+    "created_at": "2026-02-27 16:28:55"
+  }
+]
+──────────────────────────────────────
+  PASS: A has C's new URL after announce
+
+──────────────────────────────────────
+REQUEST #6  16:28:57
+GET http://nodeb:3000/api/peers
+RESPONSE: HTTP 200
+[
+  {
+    "id": "c82f9827-3d49-4ab0-b9e5-e40adcda27cc",
+    "name": "NodeA",
+    "url": "http://nodea:3000",
+    "instance_id": "ab457844-d166-4a7d-ad83-947ed6a80fd0",
+    "last_seen": "2026-02-27 16:28:55",
+    "created_at": "2026-02-27 16:28:55"
+  },
+  {
+    "id": "ab266467-d8d9-4877-98c7-2f21f789236e",
+    "name": "NodeC",
+    "url": "http://nodec-new:5000",
+    "instance_id": "29902e36-ca21-4551-aa5b-d68fed5a37b6",
+    "last_seen": "2026-02-27 16:28:55",
+    "created_at": "2026-02-27 16:28:55"
+  }
+]
+──────────────────────────────────────
+  PASS: B has C's new URL after announce
+
+──────────────────────────────────────
+REQUEST #6  16:28:57
+PUT http://nodec:3000/api/networking/external-url
+  Header: Content-Type: application/json
+  Body: {"url":"http://nodec-final:4000"}
+RESPONSE: HTTP 200
+{
+  "externalUrl": "http://nodec-final:4000"
+}
+──────────────────────────────────────
+
+──────────────────────────────────────
+REQUEST #7  16:28:58
+GET http://nodea:3000/api/peers
+RESPONSE: HTTP 200
+[
+  {
+    "id": "198822cf-8671-4a5e-87f6-8109f44ace69",
+    "name": "NodeB",
+    "url": "http://nodeb:3000",
+    "instance_id": "6babcd1d-ac5e-4892-b242-538d21164eaa",
+    "last_seen": "2026-02-27 16:28:55",
+    "created_at": "2026-02-27 16:28:55"
+  },
+  {
+    "id": "4e5b4bb4-00e4-4d96-9679-295246d3bae6",
+    "name": "NodeC",
+    "url": "http://nodec-final:4000",
+    "instance_id": "29902e36-ca21-4551-aa5b-d68fed5a37b6",
+    "last_seen": "2026-02-27 16:28:57",
+    "created_at": "2026-02-27 16:28:55"
+  }
+]
+──────────────────────────────────────
+  PASS: A tracks C's final URL
+
+──────────────────────────────────────
+REQUEST #7  16:28:58
+GET http://nodeb:3000/api/peers
+RESPONSE: HTTP 200
+[
+  {
+    "id": "c82f9827-3d49-4ab0-b9e5-e40adcda27cc",
+    "name": "NodeA",
+    "url": "http://nodea:3000",
+    "instance_id": "ab457844-d166-4a7d-ad83-947ed6a80fd0",
+    "last_seen": "2026-02-27 16:28:55",
+    "created_at": "2026-02-27 16:28:55"
+  },
+  {
+    "id": "ab266467-d8d9-4877-98c7-2f21f789236e",
+    "name": "NodeC",
+    "url": "http://nodec-final:4000",
+    "instance_id": "29902e36-ca21-4551-aa5b-d68fed5a37b6",
+    "last_seen": "2026-02-27 16:28:57",
+    "created_at": "2026-02-27 16:28:55"
+  }
+]
+──────────────────────────────────────
+  PASS: B tracks C's final URL
+
+──────────────────────────────────────
+REQUEST #7  16:28:58
+PUT http://nodec:3000/api/networking/external-url
+  Header: Content-Type: application/json
+  Body: {"url":"http://nodec:3000"}
+RESPONSE: HTTP 200
+{
+  "externalUrl": "http://nodec:3000"
+}
+──────────────────────────────────────
+
+──────────────────────────────────────
+REQUEST #8  16:28:59
+GET http://nodea:3000/api/peers
+RESPONSE: HTTP 200
+[
+  {
+    "id": "198822cf-8671-4a5e-87f6-8109f44ace69",
+    "name": "NodeB",
+    "url": "http://nodeb:3000",
+    "instance_id": "6babcd1d-ac5e-4892-b242-538d21164eaa",
+    "last_seen": "2026-02-27 16:28:55",
+    "created_at": "2026-02-27 16:28:55"
+  },
+  {
+    "id": "4e5b4bb4-00e4-4d96-9679-295246d3bae6",
+    "name": "NodeC",
+    "url": "http://nodec:3000",
+    "instance_id": "29902e36-ca21-4551-aa5b-d68fed5a37b6",
+    "last_seen": "2026-02-27 16:28:58",
+    "created_at": "2026-02-27 16:28:55"
+  }
+]
+──────────────────────────────────────
+  PASS: A has C's restored URL
+
+[17] Testing gossip resolve with stale record...
+
+──────────────────────────────────────
+REQUEST #8  16:28:59
+POST http://nodea:3000/api/federation/announce
+  Header: Authorization: Bearer adb_8d6f9651fbf5385b8473fcddc95458dd14799ea028c80daf2f484a600e515ab9
+  Header: Content-Type: application/json
+  Body: {"instanceId":"29902e36-ca21-4551-aa5b-d68fed5a37b6","url":"http://dead-host:9999"}
+RESPONSE: HTTP 200
+{
+  "updated": true
+}
+──────────────────────────────────────
+
+──────────────────────────────────────
+REQUEST #9  16:28:59
+GET http://nodea:3000/api/peers
+RESPONSE: HTTP 200
+[
+  {
+    "id": "198822cf-8671-4a5e-87f6-8109f44ace69",
+    "name": "NodeB",
+    "url": "http://nodeb:3000",
+    "instance_id": "6babcd1d-ac5e-4892-b242-538d21164eaa",
+    "last_seen": "2026-02-27 16:28:55",
+    "created_at": "2026-02-27 16:28:55"
+  },
+  {
+    "id": "4e5b4bb4-00e4-4d96-9679-295246d3bae6",
+    "name": "NodeC",
+    "url": "http://dead-host:9999",
+    "instance_id": "29902e36-ca21-4551-aa5b-d68fed5a37b6",
+    "last_seen": "2026-02-27 16:28:59",
+    "created_at": "2026-02-27 16:28:55"
+  }
+]
+──────────────────────────────────────
+  PASS: A has stale URL for C
+
+──────────────────────────────────────
+REQUEST #9  16:28:59
+GET http://nodeb:3000/api/peers
+RESPONSE: HTTP 200
+[
+  {
+    "id": "c82f9827-3d49-4ab0-b9e5-e40adcda27cc",
+    "name": "NodeA",
+    "url": "http://nodea:3000",
+    "instance_id": "ab457844-d166-4a7d-ad83-947ed6a80fd0",
+    "last_seen": "2026-02-27 16:28:55",
+    "created_at": "2026-02-27 16:28:55"
+  },
+  {
+    "id": "ab266467-d8d9-4877-98c7-2f21f789236e",
+    "name": "NodeC",
+    "url": "http://nodec:3000",
+    "instance_id": "29902e36-ca21-4551-aa5b-d68fed5a37b6",
+    "last_seen": "2026-02-27 16:28:58",
+    "created_at": "2026-02-27 16:28:55"
+  }
+]
+──────────────────────────────────────
+  PASS: B still has correct URL for C
+
+──────────────────────────────────────
+REQUEST #9  16:28:59
+POST http://nodea:3000/api/peers/4e5b4bb4-00e4-4d96-9679-295246d3bae6/resolve
+RESPONSE: HTTP 200
+{
+  "resolved": true,
+  "via": "NodeB",
+  "peer": {
+    "id": "4e5b4bb4-00e4-4d96-9679-295246d3bae6",
+    "name": "NodeC",
+    "url": "http://nodec:3000",
+    "instance_id": "29902e36-ca21-4551-aa5b-d68fed5a37b6",
+    "last_seen": "2026-02-27 16:28:59",
+    "created_at": "2026-02-27 16:28:55"
+  }
+}
+──────────────────────────────────────
+  PASS: Gossip resolved C
+  PASS: Resolved via B
+
+──────────────────────────────────────
+REQUEST #9  16:28:59
+GET http://nodea:3000/api/peers
+RESPONSE: HTTP 200
+[
+  {
+    "id": "198822cf-8671-4a5e-87f6-8109f44ace69",
+    "name": "NodeB",
+    "url": "http://nodeb:3000",
+    "instance_id": "6babcd1d-ac5e-4892-b242-538d21164eaa",
+    "last_seen": "2026-02-27 16:28:55",
+    "created_at": "2026-02-27 16:28:55"
+  },
+  {
+    "id": "4e5b4bb4-00e4-4d96-9679-295246d3bae6",
+    "name": "NodeC",
+    "url": "http://nodec:3000",
+    "instance_id": "29902e36-ca21-4551-aa5b-d68fed5a37b6",
+    "last_seen": "2026-02-27 16:28:59",
+    "created_at": "2026-02-27 16:28:55"
+  }
+]
+──────────────────────────────────────
+  PASS: A's URL for C fixed via gossip
+
+──────────────────────────────────────
+REQUEST #9  16:28:59
+GET http://nodea:3000/api/peers/4e5b4bb4-00e4-4d96-9679-295246d3bae6/library
+RESPONSE: HTTP 200
+{
+  "instanceId": "29902e36-ca21-4551-aa5b-d68fed5a37b6",
+  "instanceName": "NodeC",
+  "items": []
+}
+──────────────────────────────────────
+  PASS: A can browse C after resolve
+
+========================================
+  Results: 67/67 passed
+  All tests passed!
+========================================

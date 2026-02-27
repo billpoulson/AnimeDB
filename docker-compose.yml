@@ -1,6 +1,9 @@
 services:
   animedb:
-    build: .
+    build:
+      context: .
+      args:
+        BUILD_SHA: ${BUILD_SHA:-unknown}
     ports:
       - "3000:3000"
     volumes:

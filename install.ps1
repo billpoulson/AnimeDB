@@ -32,6 +32,7 @@ if ((-not (Test-Path .env)) -and (Test-Path .env.example)) {
 }
 
 Write-Host "==> Starting AnimeDB with Docker Compose..." -ForegroundColor Cyan
-docker compose up -d
+$env:BUILD_SHA = (git rev-parse HEAD 2>$null) ?? "unknown"
+docker compose up --build -d
 
 Write-Host "`nDone! AnimeDB is running at http://localhost:3000" -ForegroundColor Green

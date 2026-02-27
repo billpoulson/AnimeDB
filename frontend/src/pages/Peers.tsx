@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import {
-  ApiKey, Peer, NetworkingInfo,
+  ApiKey, Peer, NetworkingInfo, ApiKeyCreated,
   getApiKeys, createApiKey, deleteApiKey,
-  getPeers, addPeer, deletePeer,
+  getPeers, addPeer, deletePeer, connectPeer,
   getNetworking, setExternalUrl, resolvePeer,
 } from '../api/client';
 import RemoteLibrary from '../components/RemoteLibrary';
@@ -15,12 +15,13 @@ export default function Peers() {
 
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [newKeyLabel, setNewKeyLabel] = useState('');
-  const [createdKey, setCreatedKey] = useState<string | null>(null);
+  const [createdKeyResult, setCreatedKeyResult] = useState<ApiKeyCreated | null>(null);
   const [keyError, setKeyError] = useState('');
 
   const [peers, setPeers] = useState<Peer[]>([]);
   const [showAddPeer, setShowAddPeer] = useState(false);
   const [peerForm, setPeerForm] = useState({ name: '', url: '', api_key: '' });
+  const [connectString, setConnectString] = useState('');
   const [peerError, setPeerError] = useState('');
   const [peerSaving, setPeerSaving] = useState(false);
 
@@ -61,7 +62,7 @@ export default function Peers() {
     setKeyError('');
     try {
       const result = await createApiKey(newKeyLabel.trim());
-      setCreatedKey(result.key);
+      setCreatedKeyResult(result);
       setNewKeyLabel('');
       refresh();
     } catch (err: any) {
@@ -75,8 +76,25 @@ export default function Peers() {
   };
 
   const handleAddPeer = async () => {
+    if (connectString.trim()) {
+      setPeerError('');
+      setPeerSaving(true);
+      try {
+        await connectPeer(connectString.trim());
+        setConnectString('');
+        setPeerForm({ name: '', url: '', api_key: '' });
+        setShowAddPeer(false);
+        refresh();
+      } catch (err: any) {
+        setPeerError(err.response?.data?.error || 'Failed to connect');
+      } finally {
+        setPeerSaving(false);
+      }
+      return;
+    }
+
     if (!peerForm.name.trim() || !peerForm.url.trim() || !peerForm.api_key.trim()) {
-      setPeerError('All fields are required');
+      setPeerError('Paste a connection string, or fill in all fields manually');
       return;
     }
     setPeerError('');
@@ -206,25 +224,59 @@ export default function Peers() {
         </div>
         {keyError && <p className="text-xs text-red-400 mb-2">{keyError}</p>}
 
-        {createdKey && (
-          <div className="bg-green-900/30 border border-green-800 rounded-lg p-4 mb-4">
-            <p className="text-sm text-green-300 mb-1">Key created -- copy it now, it won't be shown again:</p>
-            <div className="flex items-center gap-2">
-              <code className="flex-1 text-xs bg-gray-800 rounded px-3 py-2 text-green-200 break-all select-all">
-                {createdKey}
-              </code>
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(createdKey);
-                }}
-                className="text-xs px-3 py-1.5 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors shrink-0"
-              >
-                Copy
-              </button>
-            </div>
+        {createdKeyResult && (
+          <div className="bg-green-900/30 border border-green-800 rounded-lg p-4 mb-4 space-y-3">
+            {createdKeyResult.connectionString ? (
+              <>
+                <p className="text-sm text-green-300">Send this connection string to your peer -- they can paste it directly:</p>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 text-xs bg-gray-800 rounded px-3 py-2 text-green-200 break-all select-all">
+                    {createdKeyResult.connectionString}
+                  </code>
+                  <button
+                    onClick={() => navigator.clipboard.writeText(createdKeyResult.connectionString!)}
+                    className="text-xs px-3 py-1.5 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors shrink-0"
+                  >
+                    Copy
+                  </button>
+                </div>
+                <details className="text-xs">
+                  <summary className="text-gray-500 cursor-pointer hover:text-gray-400">Show raw API key</summary>
+                  <div className="flex items-center gap-2 mt-2">
+                    <code className="flex-1 bg-gray-800 rounded px-3 py-2 text-green-200 break-all select-all">
+                      {createdKeyResult.key}
+                    </code>
+                    <button
+                      onClick={() => navigator.clipboard.writeText(createdKeyResult.key)}
+                      className="text-xs px-3 py-1.5 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors shrink-0"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </details>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-green-300">Key created -- copy it now, it won't be shown again:</p>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 text-xs bg-gray-800 rounded px-3 py-2 text-green-200 break-all select-all">
+                    {createdKeyResult.key}
+                  </code>
+                  <button
+                    onClick={() => navigator.clipboard.writeText(createdKeyResult.key)}
+                    className="text-xs px-3 py-1.5 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors shrink-0"
+                  >
+                    Copy
+                  </button>
+                </div>
+                <p className="text-xs text-yellow-400">
+                  Set an external URL above to generate a one-paste connection string with future keys.
+                </p>
+              </>
+            )}
             <button
-              onClick={() => setCreatedKey(null)}
-              className="text-xs text-gray-400 hover:text-gray-300 mt-2"
+              onClick={() => setCreatedKeyResult(null)}
+              className="text-xs text-gray-400 hover:text-gray-300"
             >
               Dismiss
             </button>
@@ -284,35 +336,47 @@ export default function Peers() {
         {showAddPeer && (
           <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 mb-4 space-y-3">
             <h3 className="text-sm font-medium text-gray-300">Connect to a peer</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-xs text-gray-500 mb-0.5">Name</label>
-                <input
-                  value={peerForm.name}
-                  onChange={(e) => setPeerForm({ ...peerForm, name: e.target.value })}
-                  placeholder="Bob's AnimeDB"
-                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-0.5">URL</label>
-                <input
-                  value={peerForm.url}
-                  onChange={(e) => setPeerForm({ ...peerForm, url: e.target.value })}
-                  placeholder="http://1.2.3.4:3000"
-                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-0.5">API Key</label>
-                <input
-                  value={peerForm.api_key}
-                  onChange={(e) => setPeerForm({ ...peerForm, api_key: e.target.value })}
-                  placeholder="adb_..."
-                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-0.5">Connection string</label>
+              <input
+                value={connectString}
+                onChange={(e) => setConnectString(e.target.value)}
+                placeholder="Paste an adb-connect:... string"
+                className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
             </div>
+            <details className="text-xs">
+              <summary className="text-gray-500 cursor-pointer hover:text-gray-400">Or enter details manually</summary>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-0.5">Name</label>
+                  <input
+                    value={peerForm.name}
+                    onChange={(e) => setPeerForm({ ...peerForm, name: e.target.value })}
+                    placeholder="Bob's AnimeDB"
+                    className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-0.5">URL</label>
+                  <input
+                    value={peerForm.url}
+                    onChange={(e) => setPeerForm({ ...peerForm, url: e.target.value })}
+                    placeholder="http://1.2.3.4:3000"
+                    className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-0.5">API Key</label>
+                  <input
+                    value={peerForm.api_key}
+                    onChange={(e) => setPeerForm({ ...peerForm, api_key: e.target.value })}
+                    placeholder="adb_..."
+                    className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+            </details>
             {peerError && <p className="text-xs text-red-400">{peerError}</p>}
             <div className="flex gap-2">
               <button
@@ -323,7 +387,7 @@ export default function Peers() {
                 {peerSaving ? 'Connecting...' : 'Connect'}
               </button>
               <button
-                onClick={() => setShowAddPeer(false)}
+                onClick={() => { setShowAddPeer(false); setConnectString(''); }}
                 className="text-sm px-3 py-1.5 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors"
               >
                 Cancel

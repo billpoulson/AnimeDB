@@ -9,6 +9,7 @@ vi.mock('../src/config', () => ({
     outputFormat: 'mkv',
     mediaPath: '/media',
     downloadPath: '/downloads',
+    authDisabled: true,
   },
 }));
 

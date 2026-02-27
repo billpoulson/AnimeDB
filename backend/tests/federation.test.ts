@@ -25,6 +25,9 @@ vi.mock('../src/config', () => ({
     port: 3000,
     instanceName: 'TestInstance',
     externalUrl: '',
+    authDisabled: true,
+    buildSha: 'test',
+    githubRepo: 'test/test',
     plex: { url: '', token: '', sectionMovies: 1, sectionTv: 2 },
   },
 }));

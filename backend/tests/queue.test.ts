@@ -12,6 +12,7 @@ vi.mock('../src/config', () => ({
     downloadPath: '/downloads',
     mediaPath: '/media',
     dbPath: ':memory:',
+    authDisabled: true,
     plex: { url: '', token: '', sectionMovies: 1, sectionTv: 2 },
   },
 }));

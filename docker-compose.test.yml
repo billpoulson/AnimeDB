@@ -1,0 +1,71 @@
+services:
+  nodea:
+    build: .
+    ports:
+      - "3001:3000"
+    environment:
+      - DB_PATH=/data/animedb.sqlite
+      - DOWNLOAD_PATH=/downloads
+      - MEDIA_PATH=/media
+      - OUTPUT_FORMAT=mkv
+      - INSTANCE_NAME=NodeA
+      - EXTERNAL_URL=http://nodea:3000
+      - AUTH_DISABLED=true
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/config', r => { process.exit(r.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  nodeb:
+    build: .
+    ports:
+      - "3002:3000"
+    environment:
+      - DB_PATH=/data/animedb.sqlite
+      - DOWNLOAD_PATH=/downloads
+      - MEDIA_PATH=/media
+      - OUTPUT_FORMAT=mkv
+      - INSTANCE_NAME=NodeB
+      - EXTERNAL_URL=http://nodeb:3000
+      - AUTH_DISABLED=true
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/config', r => { process.exit(r.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  nodec:
+    build: .
+    ports:
+      - "3003:3000"
+    environment:
+      - DB_PATH=/data/animedb.sqlite
+      - DOWNLOAD_PATH=/downloads
+      - MEDIA_PATH=/media
+      - OUTPUT_FORMAT=mkv
+      - INSTANCE_NAME=NodeC
+      - EXTERNAL_URL=http://nodec:3000
+      - AUTH_DISABLED=true
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/config', r => { process.exit(r.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  test-runner:
+    build:
+      context: .
+      dockerfile: tests/p2p/Dockerfile.testrunner
+    volumes:
+      - ./tests/p2p/logs:/logs
+    depends_on:
+      nodea:
+        condition: service_healthy
+      nodeb:
+        condition: service_healthy
+      nodec:
+        condition: service_healthy

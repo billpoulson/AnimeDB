@@ -2,6 +2,71 @@ import axios from 'axios';
 
 const api = axios.create({ baseURL: '/api' });
 
+const TOKEN_KEY = 'animedb_token';
+
+api.interceptors.request.use((cfg) => {
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (token) {
+    cfg.headers.Authorization = `Bearer ${token}`;
+  }
+  return cfg;
+});
+
+let onAuthFailure: (() => void) | null = null;
+
+api.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    if (err.response?.status === 401 && onAuthFailure) {
+      localStorage.removeItem(TOKEN_KEY);
+      onAuthFailure();
+    }
+    return Promise.reject(err);
+  },
+);
+
+export function setOnAuthFailure(cb: () => void) {
+  onAuthFailure = cb;
+}
+
+// Auth
+
+export interface AuthStatus {
+  setup: boolean;
+  authenticated: boolean;
+  authRequired: boolean;
+}
+
+export async function getAuthStatus(): Promise<AuthStatus> {
+  const res = await api.get('/auth/status');
+  return res.data;
+}
+
+export async function authSetup(password: string): Promise<string> {
+  const res = await api.post('/auth/setup', { password });
+  const token: string = res.data.token;
+  localStorage.setItem(TOKEN_KEY, token);
+  return token;
+}
+
+export async function authLogin(password: string): Promise<string> {
+  const res = await api.post('/auth/login', { password });
+  const token: string = res.data.token;
+  localStorage.setItem(TOKEN_KEY, token);
+  return token;
+}
+
+export async function authLogout(): Promise<void> {
+  await api.post('/auth/logout');
+  localStorage.removeItem(TOKEN_KEY);
+}
+
+export async function authChangePassword(currentPassword: string, newPassword: string): Promise<void> {
+  const res = await api.post('/auth/change-password', { currentPassword, newPassword });
+  const token: string = res.data.token;
+  localStorage.setItem(TOKEN_KEY, token);
+}
+
 export interface Download {
   id: string;
   url: string;
@@ -132,6 +197,7 @@ export interface ApiKey {
 
 export interface ApiKeyCreated extends ApiKey {
   key: string;
+  connectionString: string | null;
 }
 
 export async function getApiKeys(): Promise<ApiKey[]> {
@@ -223,5 +289,31 @@ export async function setExternalUrl(url: string | null): Promise<{ externalUrl:
 
 export async function resolvePeer(peerId: string): Promise<{ resolved: boolean; via?: string; peer?: Peer }> {
   const res = await api.post(`/peers/${peerId}/resolve`);
+  return res.data;
+}
+
+export async function connectPeer(connectionString: string): Promise<Peer> {
+  const res = await api.post('/peers/connect', { connectionString });
+  return res.data;
+}
+
+// System
+
+export interface UpdateCheckResult {
+  currentSha: string;
+  remoteSha: string;
+  remoteDate: string;
+  remoteMessage: string;
+  updateAvailable: boolean;
+  updateInProgress: boolean;
+}
+
+export async function checkForUpdate(): Promise<UpdateCheckResult> {
+  const res = await api.get('/system/update-check');
+  return res.data;
+}
+
+export async function applyUpdate(): Promise<{ status: string; message: string }> {
+  const res = await api.post('/system/update');
   return res.data;
 }

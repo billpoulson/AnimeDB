@@ -1,8 +1,15 @@
 import { Router, Request, Response } from 'express';
 import crypto from 'crypto';
 import { getDb } from '../db';
+import { getExternalUrl } from '../services/upnp';
+import { config } from '../config';
 
 const router = Router();
+
+function buildConnectionString(url: string, name: string, key: string): string {
+  const payload = JSON.stringify({ url, name, key });
+  return `adb-connect:${Buffer.from(payload).toString('base64')}`;
+}
 
 router.get('/', (_req: Request, res: Response) => {
   const db = getDb();
@@ -27,7 +34,12 @@ router.post('/', (req: Request, res: Response) => {
     'INSERT INTO api_keys (id, label, key_hash) VALUES (?, ?, ?)'
   ).run(id, label.trim(), keyHash);
 
-  res.status(201).json({ id, label: label.trim(), key: rawKey });
+  const externalUrl = getExternalUrl();
+  const connectionString = externalUrl
+    ? buildConnectionString(externalUrl, config.instanceName, rawKey)
+    : null;
+
+  res.status(201).json({ id, label: label.trim(), key: rawKey, connectionString });
 });
 
 router.delete('/:id', (req: Request, res: Response) => {
