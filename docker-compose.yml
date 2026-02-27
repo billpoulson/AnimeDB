@@ -16,4 +16,9 @@ services:
       - PLEX_TOKEN=${PLEX_TOKEN:-}
       - PLEX_SECTION_MOVIES=${PLEX_SECTION_MOVIES:-1}
       - PLEX_SECTION_TV=${PLEX_SECTION_TV:-2}
+      - INSTANCE_NAME=${INSTANCE_NAME:-AnimeDB}
+      - EXTERNAL_URL=${EXTERNAL_URL:-}
+    # For UPnP auto-discovery, use network_mode: host (Linux only).
+    # On Windows/Mac Docker Desktop, set EXTERNAL_URL manually instead.
+    # network_mode: host
     restart: unless-stopped

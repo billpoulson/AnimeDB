@@ -4,6 +4,10 @@ import path from 'path';
 import fs from 'fs';
 import downloadsRouter from './routes/downloads';
 import librariesRouter from './routes/libraries';
+import federationRouter from './routes/federation';
+import peersRouter from './routes/peers';
+import apiKeysRouter from './routes/apiKeys';
+import networkingRouter from './routes/networking';
 import { testPlexConnection } from './services/plexClient';
 import { config } from './config';
 
@@ -15,6 +19,10 @@ export function createApp() {
 
   app.use('/api/downloads', downloadsRouter);
   app.use('/api/libraries', librariesRouter);
+  app.use('/api/federation', federationRouter);
+  app.use('/api/peers', peersRouter);
+  app.use('/api/keys', apiKeysRouter);
+  app.use('/api/networking', networkingRouter);
 
   app.get('/api/config', async (_req, res) => {
     const plexConnected = await testPlexConnection();

@@ -9,6 +9,8 @@ export const config = {
   downloadPath: process.env.DOWNLOAD_PATH || path.join(process.cwd(), 'downloads'),
   mediaPath: process.env.MEDIA_PATH || path.join(process.cwd(), 'media'),
   dbPath: process.env.DB_PATH || path.join(process.cwd(), 'data', 'animedb.sqlite'),
+  instanceName: process.env.INSTANCE_NAME || 'AnimeDB',
+  externalUrl: process.env.EXTERNAL_URL || '',
   plex: {
     url: process.env.PLEX_URL || '',
     token: process.env.PLEX_TOKEN || '',

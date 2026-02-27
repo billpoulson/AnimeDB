@@ -121,3 +121,107 @@ export async function scanForFolders(): Promise<ScannedFolder[]> {
   const res = await api.get('/libraries/scan');
   return res.data;
 }
+
+// API Keys
+
+export interface ApiKey {
+  id: string;
+  label: string;
+  created_at: string;
+}
+
+export interface ApiKeyCreated extends ApiKey {
+  key: string;
+}
+
+export async function getApiKeys(): Promise<ApiKey[]> {
+  const res = await api.get('/keys');
+  return res.data;
+}
+
+export async function createApiKey(label: string): Promise<ApiKeyCreated> {
+  const res = await api.post('/keys', { label });
+  return res.data;
+}
+
+export async function deleteApiKey(id: string): Promise<void> {
+  await api.delete(`/keys/${id}`);
+}
+
+// Peers
+
+export interface Peer {
+  id: string;
+  name: string;
+  url: string;
+  instance_id: string | null;
+  last_seen: string | null;
+  created_at: string;
+}
+
+export interface RemoteLibraryItem {
+  id: string;
+  title: string | null;
+  category: string;
+  season: number | null;
+  episode: number | null;
+  status: string;
+  created_at: string;
+}
+
+export interface RemoteLibraryResponse {
+  instanceName: string;
+  items: RemoteLibraryItem[];
+}
+
+export async function getPeers(): Promise<Peer[]> {
+  const res = await api.get('/peers');
+  return res.data;
+}
+
+export async function addPeer(data: { name: string; url: string; api_key: string }): Promise<Peer> {
+  const res = await api.post('/peers', data);
+  return res.data;
+}
+
+export async function deletePeer(id: string): Promise<void> {
+  await api.delete(`/peers/${id}`);
+}
+
+export async function getPeerLibrary(peerId: string): Promise<RemoteLibraryResponse> {
+  const res = await api.get(`/peers/${peerId}/library`);
+  return res.data;
+}
+
+export async function pullFromPeer(peerId: string, downloadId: string): Promise<{ id: string; status: string }> {
+  const res = await api.post(`/peers/${peerId}/pull/${downloadId}`);
+  return res.data;
+}
+
+// Networking
+
+export interface NetworkingInfo {
+  instanceId: string;
+  instanceName: string;
+  externalUrl: string | null;
+  upnp: {
+    active: boolean;
+    externalIp: string | null;
+    error: string | null;
+  };
+}
+
+export async function getNetworking(): Promise<NetworkingInfo> {
+  const res = await api.get('/networking');
+  return res.data;
+}
+
+export async function setExternalUrl(url: string | null): Promise<{ externalUrl: string | null }> {
+  const res = await api.put('/networking/external-url', { url });
+  return res.data;
+}
+
+export async function resolvePeer(peerId: string): Promise<{ resolved: boolean; via?: string; peer?: Peer }> {
+  const res = await api.post(`/peers/${peerId}/resolve`);
+  return res.data;
+}
