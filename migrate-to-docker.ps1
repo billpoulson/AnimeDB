@@ -18,7 +18,7 @@ function Write-Step($msg) { Write-Host "`n==> $msg" -ForegroundColor Cyan }
 
 $localDownloads = Join-Path $BackendDir "downloads"
 $localMedia     = Join-Path $BackendDir "media"
-$localDb        = Join-Path $BackendDir "data" "animedb.sqlite"
+$localDb        = Join-Path (Join-Path $BackendDir "data") "animedb.sqlite"
 
 $dockerDownloads = Join-Path $Root "downloads"
 $dockerMedia     = Join-Path $Root "media"
@@ -80,8 +80,8 @@ if (-not (Test-Path $dockerData)) { New-Item -ItemType Directory -Path $dockerDa
 Copy-Item $localDb $dockerDb -Force
 
 Write-Step "Rewriting file paths for Docker..."
-$resolvedDownloads = (Resolve-Path $localDownloads -ErrorAction SilentlyContinue)?.Path ?? $localDownloads
-$resolvedMedia     = (Resolve-Path $localMedia -ErrorAction SilentlyContinue)?.Path ?? $localMedia
+$resolvedDownloads = try { (Resolve-Path $localDownloads).Path } catch { $localDownloads }
+$resolvedMedia     = try { (Resolve-Path $localMedia).Path } catch { $localMedia }
 
 Push-Location (Join-Path $Root "backend")
 try {
