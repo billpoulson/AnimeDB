@@ -5,8 +5,10 @@ import path from 'path';
 import axios from 'axios';
 import { getDb } from '../db';
 import { config } from '../config';
+import { createLogger } from '../services/logger';
 
 const router = Router();
+const log = createLogger('peers');
 
 router.get('/', (_req: Request, res: Response) => {
   const db = getDb();
@@ -54,6 +56,7 @@ router.post('/', async (req: Request, res: Response) => {
     "INSERT INTO peers (id, name, url, api_key, instance_id, last_seen) VALUES (?, ?, ?, ?, ?, datetime('now'))"
   ).run(id, name.trim(), cleanUrl, api_key, remoteInstanceId);
 
+  log.info(`Peer added: ${name.trim()} (${cleanUrl})`);
   res.status(201).json({ id, name: name.trim(), url: cleanUrl, instance_id: remoteInstanceId });
 });
 
@@ -105,6 +108,7 @@ router.post('/connect', async (req: Request, res: Response) => {
     "INSERT INTO peers (id, name, url, api_key, instance_id, last_seen) VALUES (?, ?, ?, ?, ?, datetime('now'))"
   ).run(id, name, cleanUrl, key, remoteInstanceId);
 
+  log.info(`Peer connected via connection string: ${name} (${cleanUrl})`);
   res.status(201).json({ id, name, url: cleanUrl, instance_id: remoteInstanceId });
 });
 
@@ -171,6 +175,7 @@ router.post('/:id/resolve', async (req: Request, res: Response) => {
         const updated = db.prepare(
           'SELECT id, name, url, instance_id, last_seen, created_at FROM peers WHERE id = ?'
         ).get(peer.id);
+        log.info(`Resolved peer ${peer.id} via ${other.name} -> ${response.data.url}`);
         return res.json({ resolved: true, via: other.name, peer: updated });
       }
     } catch {
@@ -191,9 +196,10 @@ router.post('/:id/pull/:downloadId', async (req: Request, res: Response) => {
   const remoteId = req.params.downloadId;
   const { autoMove, libraryId } = req.body || {};
 
+  const federationUrl = `federation://${peer.url}/${remoteId}`;
   const existing = db.prepare(
-    "SELECT id FROM downloads WHERE id = ? AND status = 'completed'"
-  ).get(remoteId);
+    "SELECT id FROM downloads WHERE url = ? AND status IN ('completed','downloading')"
+  ).get(federationUrl);
   if (existing) {
     return res.status(409).json({ error: 'Already exists locally' });
   }
@@ -231,6 +237,7 @@ router.post('/:id/pull/:downloadId', async (req: Request, res: Response) => {
       remoteItem.episode ?? null,
     );
 
+    log.info(`Pull started: ${remoteItem.title || remoteId} from ${peer.name} (autoMove=${!!autoMove})`);
     res.status(202).json({ id: localId, status: 'downloading' });
 
     (async () => {
@@ -298,7 +305,7 @@ router.post('/:id/pull/:downloadId', async (req: Request, res: Response) => {
             const { triggerPlexScan } = await import('../services/plexClient');
             triggerPlexScan(category, library?.plex_section_id).catch(() => {});
           } catch (moveErr: any) {
-            console.error(`Auto-move failed for ${localId}:`, moveErr.message);
+              log.error(`Auto-move failed for ${localId}: ${moveErr.message}`);
           }
         }
       } catch (err: any) {

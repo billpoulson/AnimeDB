@@ -3,6 +3,9 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { config } from '../config';
+import { createLogger } from './logger';
+
+const log = createLogger('downloader');
 
 export interface DownloadProgress {
   percent: number;
@@ -46,6 +49,7 @@ export function cancelDownload(jobId: string): boolean {
   cancelledIds.add(jobId);
   const proc = activeProcesses.get(jobId);
   if (proc && proc.pid) {
+    log.info(`Cancelling download ${jobId}`);
     killProcessTree(proc.pid);
     activeProcesses.delete(jobId);
     return true;
@@ -106,6 +110,7 @@ export async function downloadVideo(
       url,
     ];
 
+    log.info(`Starting yt-dlp for ${url} (job ${id})`);
     const proc = spawn('yt-dlp', args);
     if (jobId) activeProcesses.set(jobId, proc);
 
@@ -144,17 +149,20 @@ export async function downloadVideo(
             ? mergedFile
             : resolveOutputFile(jobDir, `.${config.outputFormat}`);
           const title = readTitleFromInfoJson(jobDir);
+          log.info(`Download complete: ${title || id} -> ${filePath}`);
           resolve({ filePath, title });
         } catch (e) {
           reject(e);
         }
       } else {
+        log.error(`yt-dlp exited with code ${code}: ${stderr.slice(0, 200)}`);
         reject(new Error(`yt-dlp exited with code ${code}: ${stderr}`));
       }
     });
 
     proc.on('error', (err) => {
       if (jobId) activeProcesses.delete(jobId);
+      log.error(`Failed to start yt-dlp: ${err.message}`);
       reject(new Error(`Failed to start yt-dlp: ${err.message}`));
     });
   });

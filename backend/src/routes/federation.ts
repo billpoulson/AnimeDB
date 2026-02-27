@@ -4,8 +4,10 @@ import path from 'path';
 import { getDb, getInstanceId } from '../db';
 import { federationAuth } from '../middleware/federationAuth';
 import { config } from '../config';
+import { createLogger } from '../services/logger';
 
 const router = Router();
+const log = createLogger('federation');
 
 router.use(federationAuth);
 
@@ -40,9 +42,11 @@ router.post('/announce', (req: Request, res: Response) => {
   ).run(url.replace(/\/+$/, ''), instanceId);
 
   if (result.changes === 0) {
+    log.info(`Announce from unknown instance ${instanceId}`);
     return res.json({ updated: false, message: 'No peer with that instance ID' });
   }
 
+  log.info(`Announce accepted: instance ${instanceId} -> ${url.replace(/\/+$/, '')}`);
   res.json({ updated: true });
 });
 
@@ -90,6 +94,7 @@ router.get('/download/:id/stream', (req: Request, res: Response) => {
   res.setHeader('Content-Length', stat.size);
   res.setHeader('Content-Disposition', `attachment; filename="${path.basename(filePath)}"`);
 
+  log.info(`Streaming file ${path.basename(filePath)} (${(stat.size / 1048576).toFixed(1)} MB)`);
   fs.createReadStream(filePath).pipe(res);
 });
 

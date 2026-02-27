@@ -1,6 +1,9 @@
 import fs from 'fs';
 import path from 'path';
 import { config } from '../config';
+import { createLogger } from './logger';
+
+const log = createLogger('media');
 
 export interface MediaInfo {
   title: string;
@@ -58,6 +61,8 @@ export async function moveToLibrary(sourcePath: string, info: MediaInfo, library
   const targetPath = buildTargetPath(info, libraryBasePath);
   const targetDir = path.dirname(targetPath);
 
+  log.info(`Moving "${info.title}" (${info.category}) -> ${targetPath}`);
+
   fs.mkdirSync(targetDir, { recursive: true });
   fs.copyFileSync(sourcePath, targetPath);
   fs.unlinkSync(sourcePath);
@@ -68,5 +73,6 @@ export async function moveToLibrary(sourcePath: string, info: MediaInfo, library
     if (remaining.length === 0) fs.rmdirSync(sourceDir);
   } catch { /* non-critical cleanup */ }
 
+  log.info(`Move complete: ${path.basename(targetPath)}`);
   return targetPath;
 }

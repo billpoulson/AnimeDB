@@ -8,8 +8,10 @@ import { cancelDownload } from '../services/downloader';
 import { moveToLibrary } from '../services/mediaOrganizer';
 import { triggerPlexScan } from '../services/plexClient';
 import { config } from '../config';
+import { createLogger } from '../services/logger';
 
 const router = Router();
+const log = createLogger('downloads');
 
 router.post('/', (req: Request, res: Response) => {
   const { url, category = 'other', title, season, episode } = req.body;
@@ -36,6 +38,7 @@ router.post('/', (req: Request, res: Response) => {
 
   enqueue(id);
 
+  log.info(`Download queued: ${id} (${category}) ${url}`);
   res.status(201).json({ id, status: 'queued' });
 });
 
@@ -165,8 +168,10 @@ router.post('/:id/move', async (req: Request, res: Response) => {
 
     triggerPlexScan(category, library?.plex_section_id).catch(() => {});
 
+    log.info(`Moved ${download.id} to library: ${targetPath}`);
     res.json({ id: download.id, file_path: targetPath, moved_to_library: 1 });
   } catch (err: any) {
+    log.error(`Move failed for ${download.id}: ${err.message}`);
     res.status(500).json({ error: err.message || 'Failed to move file' });
   }
 });

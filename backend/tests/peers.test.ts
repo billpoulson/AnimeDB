@@ -139,15 +139,16 @@ describe('Peers API', () => {
 
     it('returns 409 if download already exists locally', async () => {
       const db = getDb();
-      const peerId = insertPeer(db);
+      const peerUrl = 'http://localhost:9999';
+      const peerId = insertPeer(db, { url: peerUrl });
 
-      const existingId = 'already-exists';
+      const remoteId = 'already-exists';
       db.prepare(
         `INSERT INTO downloads (id, url, title, category, status, progress)
          VALUES (?, ?, ?, ?, 'completed', 100)`
-      ).run(existingId, 'https://youtube.com/watch?v=x', 'Exists', 'other');
+      ).run(crypto.randomUUID(), `federation://${peerUrl}/${remoteId}`, 'Exists', 'other');
 
-      const res = await request.post(`/api/peers/${peerId}/pull/${existingId}`);
+      const res = await request.post(`/api/peers/${peerId}/pull/${remoteId}`);
       expect(res.status).toBe(409);
       expect(res.body.error).toContain('Already exists');
     });

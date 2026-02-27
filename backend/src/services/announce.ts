@@ -1,11 +1,14 @@
 import axios from 'axios';
 import { getDb, getInstanceId } from '../db';
 import { getExternalUrl } from './upnp';
+import { createLogger } from './logger';
+
+const log = createLogger('announce');
 
 export async function announceToAllPeers(): Promise<void> {
   const url = getExternalUrl();
   if (!url) {
-    console.log('Skipping announce: no external URL configured');
+    log.info('Skipping announce: no external URL configured');
     return;
   }
 
@@ -15,7 +18,7 @@ export async function announceToAllPeers(): Promise<void> {
 
   if (peers.length === 0) return;
 
-  console.log(`Announcing URL ${url} to ${peers.length} peer(s)...`);
+  log.info(`Announcing URL ${url} to ${peers.length} peer(s)`);
 
   const results = await Promise.allSettled(
     peers.map(async (peer) => {
@@ -29,16 +32,16 @@ export async function announceToAllPeers(): Promise<void> {
           },
         );
         if (res.data?.updated) {
-          console.log(`  ${peer.name}: updated`);
+          log.info(`Peer ${peer.name}: updated`);
         } else {
-          console.log(`  ${peer.name}: acknowledged (not tracked)`);
+          log.info(`Peer ${peer.name}: acknowledged (not tracked)`);
         }
       } catch (err: any) {
-        console.warn(`  ${peer.name}: failed (${err.message})`);
+        log.warn(`Peer ${peer.name}: failed (${err.message})`);
       }
     }),
   );
 
   const succeeded = results.filter((r) => r.status === 'fulfilled').length;
-  console.log(`Announce complete: ${succeeded}/${peers.length} peers notified`);
+  log.info(`Announce complete: ${succeeded}/${peers.length} peers notified`);
 }

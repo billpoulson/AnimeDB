@@ -1,5 +1,8 @@
 import { getDb } from '../db';
 import { downloadVideo } from './downloader';
+import { createLogger } from './logger';
+
+const log = createLogger('queue');
 
 export interface DownloadRow {
   id: string;
@@ -29,6 +32,7 @@ export function startQueue(): void {
     `UPDATE downloads SET status = 'queued' WHERE status IN ('downloading', 'processing')`
   ).run();
   currentJobId = null;
+  log.info('Download queue started');
   scheduleNext();
 }
 
@@ -39,7 +43,7 @@ export function resetQueue(): void {
 function scheduleNext(): void {
   setImmediate(() => {
     if (currentJobId === null) {
-      processNext().catch(console.error);
+      processNext().catch((err) => log.error(`Queue error: ${err.message}`));
     }
   });
 }
@@ -55,6 +59,7 @@ async function processNext(): Promise<void> {
   if (!job) return;
 
   currentJobId = job.id;
+  log.info(`Processing job ${job.id}: ${job.url}`);
   try {
     await processJob(job);
   } finally {
@@ -82,19 +87,24 @@ async function processJob(job: DownloadRow, attempt = 1): Promise<void> {
     db.prepare(
       `UPDATE downloads SET status = 'completed', progress = 100, file_path = ?, title = ?, updated_at = datetime('now') WHERE id = ?`
     ).run(result.filePath, title, job.id);
+
+    log.info(`Job ${job.id} completed: ${title}`);
   } catch (err: any) {
     if (err.message === 'CANCELLED') {
       db.prepare(
         `UPDATE downloads SET status = 'cancelled', error = 'Cancelled by user', updated_at = datetime('now') WHERE id = ?`
       ).run(job.id);
+      log.info(`Job ${job.id} cancelled by user`);
       return;
     }
     if (attempt < MAX_RETRIES) {
+      log.warn(`Job ${job.id} failed (attempt ${attempt}/${MAX_RETRIES}), retrying: ${err.message}`);
       db.prepare(
         `UPDATE downloads SET status = 'queued', updated_at = datetime('now') WHERE id = ?`
       ).run(job.id);
       return processJob(job, attempt + 1);
     }
+    log.error(`Job ${job.id} failed permanently: ${err.message}`);
     db.prepare(
       `UPDATE downloads SET status = 'failed', error = ?, updated_at = datetime('now') WHERE id = ?`
     ).run(err.message || 'Unknown error', job.id);

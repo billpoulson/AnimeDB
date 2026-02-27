@@ -1,6 +1,9 @@
 import { config } from '../config';
 // @ts-expect-error nat-upnp-2 has no type definitions
 import natUpnp from 'nat-upnp-2';
+import { createLogger } from './logger';
+
+const log = createLogger('UPnP');
 
 const MAPPING_DESCRIPTION = 'AnimeDB';
 const MAPPING_TTL = 0; // 0 = permanent until removed
@@ -84,13 +87,13 @@ async function mapPort(publicPort: number): Promise<void> {
 
   mappedPort = publicPort;
   state = { active: true, externalIp: ip, externalUrl: url, externalPort: publicPort, error: null };
-  console.log(`UPnP port mapping active: ${url}`);
+  log.info(`Port mapping active: ${url} (external ${publicPort} -> internal ${config.port})`);
 }
 
 export async function startUpnp(): Promise<void> {
   if (manualExternalUrl) {
     state = { active: false, externalIp: null, externalUrl: manualExternalUrl, externalPort: null, error: null };
-    console.log(`Using manual external URL: ${manualExternalUrl}`);
+    log.info(`Using manual external URL: ${manualExternalUrl}`);
     return;
   }
 
@@ -104,7 +107,7 @@ export async function startUpnp(): Promise<void> {
       externalPort: null,
       error: err.message || 'UPnP discovery failed',
     };
-    console.warn(`UPnP failed: ${state.error}. Set EXTERNAL_URL manually if you need federation.`);
+    log.warn(`Discovery failed: ${state.error}. Set EXTERNAL_URL manually if you need federation.`);
   }
 }
 
@@ -119,7 +122,7 @@ export async function retryUpnp(publicPort: number): Promise<UpnpState> {
       externalPort: null,
       error: err.message || 'UPnP mapping failed',
     };
-    console.warn(`UPnP retry on port ${publicPort} failed: ${state.error}`);
+    log.warn(`Retry on port ${publicPort} failed: ${state.error}`);
   }
   return getUpnpState();
 }
@@ -130,7 +133,7 @@ export async function stopUpnp(): Promise<void> {
   const portToUnmap = mappedPort || config.port;
   try {
     await client.portUnmapping({ public: portToUnmap });
-    console.log('UPnP port mapping removed');
+    log.info('Port mapping removed');
   } catch {
     // best-effort cleanup
   } finally {
