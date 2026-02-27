@@ -249,16 +249,44 @@ function UpdateCheck() {
   useEffect(() => { check(); }, []);
 
   const handleUpdate = async () => {
+    if (!info) return;
+    const targetSha = info.remoteSha;
     setUpdating(true);
     setUpdateMsg('');
     setUpdateErr('');
     try {
       const result = await applyUpdate();
       setUpdateMsg(result.message);
+      pollForNewVersion(targetSha);
     } catch (err: any) {
       setUpdateErr(err.response?.data?.error || 'Update failed');
       setUpdating(false);
     }
+  };
+
+  const pollForNewVersion = (targetSha: string) => {
+    let attempts = 0;
+    const maxAttempts = 120;
+    const interval = setInterval(async () => {
+      attempts++;
+      if (attempts > maxAttempts) {
+        clearInterval(interval);
+        setUpdateErr('Update is taking longer than expected. The app may still be restarting — try refreshing the page.');
+        setUpdating(false);
+        return;
+      }
+      try {
+        const result = await checkForUpdate();
+        if (result.currentSha === targetSha) {
+          clearInterval(interval);
+          setInfo(result);
+          setUpdateMsg('');
+          setUpdating(false);
+        }
+      } catch {
+        // server is restarting, keep polling
+      }
+    }, 3000);
   };
 
   return (
@@ -297,8 +325,14 @@ function UpdateCheck() {
                 <button
                   onClick={handleUpdate}
                   disabled={updating}
-                  className="text-xs px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-500 text-white transition-colors disabled:opacity-50"
+                  className="text-xs px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-500 text-white transition-colors disabled:opacity-50 inline-flex items-center gap-1.5"
                 >
+                  {updating && (
+                    <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                  )}
                   {updating ? 'Updating...' : 'Install update'}
                 </button>
               </div>
@@ -312,8 +346,12 @@ function UpdateCheck() {
 
         {updateMsg && <p className="text-xs text-blue-400">{updateMsg}</p>}
         {updating && updateMsg && (
-          <p className="text-xs text-gray-400">
-            The app is rebuilding and will restart automatically. This page will reconnect when ready.
+          <p className="text-xs text-gray-400 flex items-center gap-1.5">
+            <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            Waiting for the app to restart with the new version...
           </p>
         )}
         {updateErr && <p className="text-xs text-red-400">{updateErr}</p>}
