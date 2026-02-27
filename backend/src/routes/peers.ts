@@ -189,12 +189,20 @@ router.post('/:id/pull/:downloadId', async (req: Request, res: Response) => {
   }
 
   const remoteId = req.params.downloadId;
+  const { autoMove, libraryId } = req.body || {};
 
   const existing = db.prepare(
     "SELECT id FROM downloads WHERE id = ? AND status = 'completed'"
   ).get(remoteId);
   if (existing) {
     return res.status(409).json({ error: 'Already exists locally' });
+  }
+
+  if (libraryId) {
+    const lib = db.prepare('SELECT id FROM libraries WHERE id = ?').get(libraryId);
+    if (!lib) {
+      return res.status(400).json({ error: 'Library not found' });
+    }
   }
 
   try {
@@ -225,7 +233,6 @@ router.post('/:id/pull/:downloadId', async (req: Request, res: Response) => {
 
     res.status(202).json({ id: localId, status: 'downloading' });
 
-    // Stream the file in the background
     (async () => {
       try {
         const streamResponse = await axios.get(
@@ -266,6 +273,34 @@ router.post('/:id/pull/:downloadId', async (req: Request, res: Response) => {
         db.prepare(
           "UPDATE downloads SET status = 'completed', progress = 100, file_path = ?, updated_at = datetime('now') WHERE id = ?"
         ).run(filePath, localId);
+
+        if (autoMove) {
+          try {
+            const dl = db.prepare('SELECT * FROM downloads WHERE id = ?').get(localId) as any;
+            let library: any = null;
+            if (libraryId) {
+              library = db.prepare('SELECT * FROM libraries WHERE id = ?').get(libraryId);
+            }
+            const title = dl.title || path.basename(filePath).replace(/\.[^.]+$/, '');
+            const category = library ? library.type : dl.category;
+            const { moveToLibrary } = await import('../services/mediaOrganizer');
+            const targetPath = await moveToLibrary(filePath, {
+              title,
+              category,
+              season: dl.season ?? undefined,
+              episode: dl.episode ?? undefined,
+            }, library?.path);
+
+            db.prepare(
+              "UPDATE downloads SET file_path = ?, moved_to_library = 1, library_id = ?, updated_at = datetime('now') WHERE id = ?"
+            ).run(targetPath, libraryId || null, localId);
+
+            const { triggerPlexScan } = await import('../services/plexClient');
+            triggerPlexScan(category, library?.plex_section_id).catch(() => {});
+          } catch (moveErr: any) {
+            console.error(`Auto-move failed for ${localId}:`, moveErr.message);
+          }
+        }
       } catch (err: any) {
         db.prepare(
           "UPDATE downloads SET status = 'failed', error = ?, updated_at = datetime('now') WHERE id = ?"

@@ -263,8 +263,12 @@ export async function getPeerLibrary(peerId: string): Promise<RemoteLibraryRespo
   return res.data;
 }
 
-export async function pullFromPeer(peerId: string, downloadId: string): Promise<{ id: string; status: string }> {
-  const res = await api.post(`/peers/${peerId}/pull/${downloadId}`);
+export async function pullFromPeer(
+  peerId: string,
+  downloadId: string,
+  opts?: { autoMove?: boolean; libraryId?: string },
+): Promise<{ id: string; status: string }> {
+  const res = await api.post(`/peers/${peerId}/pull/${downloadId}`, opts || {});
   return res.data;
 }
 

@@ -1,12 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import supertest from 'supertest';
 import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
 import { createApp } from '../src/app';
 import { initDb, closeDb, getDb } from '../src/db';
 
 vi.mock('../src/services/queue', () => ({ enqueue: vi.fn() }));
 vi.mock('../src/services/plexClient', () => ({
   testPlexConnection: vi.fn().mockResolvedValue(false),
+  triggerPlexScan: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock('../src/services/upnp', () => ({
   getUpnpState: vi.fn().mockReturnValue({ active: false, externalIp: null, externalUrl: null, error: null }),
@@ -369,3 +373,165 @@ describe('Peers API - self-federation integration', () => {
     }
   });
 });
+
+describe('Peers API - pull with autoMove', () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'animedb-pull-test-'));
+    initDb(':memory:');
+  });
+
+  afterEach(() => {
+    closeDb();
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it('rejects pull with invalid libraryId', async () => {
+    const app = createApp();
+    const server = app.listen(0);
+    const addr = server.address() as any;
+    const selfUrl = `http://127.0.0.1:${addr.port}`;
+    const selfRequest = supertest(app);
+
+    try {
+      const keyRes = await selfRequest.post('/api/keys').send({ label: 'pull-test' });
+      const apiKey = keyRes.body.key;
+
+      const db = getDb();
+      const fileContent = 'fake-video-content';
+      const filePath = path.join(tmpDir, 'test.mkv');
+      fs.writeFileSync(filePath, fileContent);
+      db.prepare(
+        `INSERT INTO downloads (id, url, title, category, status, progress, file_path)
+         VALUES (?, ?, ?, ?, 'completed', 100, ?)`
+      ).run('dl-1', 'https://youtube.com/watch?v=x', 'Test Video', 'movies', filePath);
+
+      const addRes = await selfRequest.post('/api/peers').send({
+        name: 'Self', url: selfUrl, api_key: apiKey,
+      });
+      const peerId = addRes.body.id;
+
+      const res = await selfRequest.post(`/api/peers/${peerId}/pull/dl-1`).send({
+        autoMove: true,
+        libraryId: 'nonexistent-lib',
+      });
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe('Library not found');
+    } finally {
+      server.close();
+    }
+  });
+
+  it('pull with autoMove returns 202 and downloads file', async () => {
+    const { config } = await import('../src/config');
+    const origDownloadPath = config.downloadPath;
+    const origMediaPath = config.mediaPath;
+    config.downloadPath = path.join(tmpDir, 'downloads');
+    config.mediaPath = path.join(tmpDir, 'media');
+    fs.mkdirSync(config.downloadPath, { recursive: true });
+    fs.mkdirSync(config.mediaPath, { recursive: true });
+
+    const app = createApp();
+    const server = app.listen(0);
+    const addr = server.address() as any;
+    const selfUrl = `http://127.0.0.1:${addr.port}`;
+    const selfRequest = supertest(app);
+
+    try {
+      const keyRes = await selfRequest.post('/api/keys').send({ label: 'pull-move-test' });
+      const apiKey = keyRes.body.key;
+
+      const db = getDb();
+      const filePath = path.join(tmpDir, 'source.mkv');
+      fs.writeFileSync(filePath, 'video-data-here');
+      db.prepare(
+        `INSERT INTO downloads (id, url, title, category, status, progress, file_path)
+         VALUES (?, ?, ?, ?, 'completed', 100, ?)`
+      ).run('dl-src', 'https://youtube.com/watch?v=y', 'Movie File', 'movies', filePath);
+
+      const addRes = await selfRequest.post('/api/peers').send({
+        name: 'Self', url: selfUrl, api_key: apiKey,
+      });
+      const peerId = addRes.body.id;
+
+      const pullRes = await selfRequest.post(`/api/peers/${peerId}/pull/dl-src`).send({
+        autoMove: true,
+      });
+      expect(pullRes.status).toBe(202);
+      expect(pullRes.body.status).toBe('downloading');
+      const localId = pullRes.body.id;
+
+      await waitForDownload(db, localId, 10000);
+
+      const dl = db.prepare('SELECT * FROM downloads WHERE id = ?').get(localId) as any;
+      expect(dl.status).toBe('completed');
+      expect(dl.moved_to_library).toBe(1);
+      expect(dl.file_path).toContain('Movies');
+      expect(fs.existsSync(dl.file_path)).toBe(true);
+    } finally {
+      config.downloadPath = origDownloadPath;
+      config.mediaPath = origMediaPath;
+      server.close();
+    }
+  }, 15000);
+
+  it('pull without autoMove leaves file in downloads dir', async () => {
+    const { config } = await import('../src/config');
+    const origDownloadPath = config.downloadPath;
+    config.downloadPath = path.join(tmpDir, 'downloads');
+    fs.mkdirSync(config.downloadPath, { recursive: true });
+
+    const app = createApp();
+    const server = app.listen(0);
+    const addr = server.address() as any;
+    const selfUrl = `http://127.0.0.1:${addr.port}`;
+    const selfRequest = supertest(app);
+
+    try {
+      const keyRes = await selfRequest.post('/api/keys').send({ label: 'pull-no-move' });
+      const apiKey = keyRes.body.key;
+
+      const db = getDb();
+      const filePath = path.join(tmpDir, 'no-move.mkv');
+      fs.writeFileSync(filePath, 'data');
+      db.prepare(
+        `INSERT INTO downloads (id, url, title, category, status, progress, file_path)
+         VALUES (?, ?, ?, ?, 'completed', 100, ?)`
+      ).run('dl-nm', 'https://youtube.com/watch?v=z', 'Stay Put', 'other', filePath);
+
+      const addRes = await selfRequest.post('/api/peers').send({
+        name: 'Self', url: selfUrl, api_key: apiKey,
+      });
+      const peerId = addRes.body.id;
+
+      const pullRes = await selfRequest.post(`/api/peers/${peerId}/pull/dl-nm`).send({});
+      expect(pullRes.status).toBe(202);
+      const localId = pullRes.body.id;
+
+      await waitForDownload(db, localId, 10000);
+
+      const dl = db.prepare('SELECT * FROM downloads WHERE id = ?').get(localId) as any;
+      expect(dl.status).toBe('completed');
+      expect(dl.moved_to_library).toBeFalsy();
+      expect(dl.file_path).toContain('downloads');
+    } finally {
+      config.downloadPath = origDownloadPath;
+      server.close();
+    }
+  }, 15000);
+});
+
+function waitForDownload(db: ReturnType<typeof getDb>, id: string, timeoutMs: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const start = Date.now();
+    const check = () => {
+      const dl = db.prepare('SELECT status FROM downloads WHERE id = ?').get(id) as any;
+      if (!dl) return reject(new Error('Download not found'));
+      if (dl.status === 'completed' || dl.status === 'failed') return resolve();
+      if (Date.now() - start > timeoutMs) return reject(new Error('Timeout waiting for download'));
+      setTimeout(check, 100);
+    };
+    check();
+  });
+}

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getPeerLibrary, pullFromPeer, RemoteLibraryItem } from '../api/client';
+import { getPeerLibrary, pullFromPeer, getLibraries, RemoteLibraryItem, Library } from '../api/client';
 
 interface Props {
   peerId: string;
@@ -7,40 +7,78 @@ interface Props {
   onClose: () => void;
 }
 
+type ItemAction = 'pull' | 'transfer';
+
 export default function RemoteLibrary({ peerId, peerName, onClose }: Props) {
   const [items, setItems] = useState<RemoteLibraryItem[]>([]);
   const [instanceName, setInstanceName] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [pulling, setPulling] = useState<Set<string>>(new Set());
-  const [pulled, setPulled] = useState<Set<string>>(new Set());
+  const [pulling, setPulling] = useState<Map<string, ItemAction>>(new Map());
+  const [pulled, setPulled] = useState<Map<string, ItemAction>>(new Map());
+  const [libraries, setLibraries] = useState<Library[]>([]);
+  const [transferTarget, setTransferTarget] = useState<string | null>(null);
+  const [selectedLibrary, setSelectedLibrary] = useState('');
 
   useEffect(() => {
     setLoading(true);
     setError('');
-    getPeerLibrary(peerId)
-      .then((data) => {
+    Promise.all([
+      getPeerLibrary(peerId),
+      getLibraries(),
+    ])
+      .then(([data, libs]) => {
         setItems(data.items);
         setInstanceName(data.instanceName);
+        setLibraries(libs);
       })
       .catch((err) => setError(err.response?.data?.error || err.message))
       .finally(() => setLoading(false));
   }, [peerId]);
 
   const handlePull = async (remoteId: string) => {
-    setPulling((prev) => new Set(prev).add(remoteId));
+    setPulling((prev) => new Map(prev).set(remoteId, 'pull'));
     try {
       await pullFromPeer(peerId, remoteId);
-      setPulled((prev) => new Set(prev).add(remoteId));
+      setPulled((prev) => new Map(prev).set(remoteId, 'pull'));
     } catch (err: any) {
-      const msg = err.response?.data?.error || 'Pull failed';
       if (err.response?.status === 409) {
-        setPulled((prev) => new Set(prev).add(remoteId));
+        setPulled((prev) => new Map(prev).set(remoteId, 'pull'));
       } else {
-        alert(msg);
+        alert(err.response?.data?.error || 'Pull failed');
       }
     } finally {
-      setPulling((prev) => { const s = new Set(prev); s.delete(remoteId); return s; });
+      setPulling((prev) => { const m = new Map(prev); m.delete(remoteId); return m; });
+    }
+  };
+
+  const handleTransfer = async (remoteId: string) => {
+    setPulling((prev) => new Map(prev).set(remoteId, 'transfer'));
+    setTransferTarget(null);
+    try {
+      await pullFromPeer(peerId, remoteId, {
+        autoMove: true,
+        libraryId: selectedLibrary || undefined,
+      });
+      setPulled((prev) => new Map(prev).set(remoteId, 'transfer'));
+    } catch (err: any) {
+      if (err.response?.status === 409) {
+        setPulled((prev) => new Map(prev).set(remoteId, 'transfer'));
+      } else {
+        alert(err.response?.data?.error || 'Transfer failed');
+      }
+    } finally {
+      setPulling((prev) => { const m = new Map(prev); m.delete(remoteId); return m; });
+      setSelectedLibrary('');
+    }
+  };
+
+  const openTransferPicker = (remoteId: string) => {
+    if (libraries.length === 0) {
+      handleTransfer(remoteId);
+    } else {
+      setTransferTarget(remoteId);
+      setSelectedLibrary('');
     }
   };
 
@@ -74,7 +112,7 @@ export default function RemoteLibrary({ peerId, peerName, onClose }: Props) {
                   <th className="pb-2 font-medium">Title</th>
                   <th className="pb-2 font-medium">Category</th>
                   <th className="pb-2 font-medium">Date</th>
-                  <th className="pb-2 font-medium w-24"></th>
+                  <th className="pb-2 font-medium w-48"></th>
                 </tr>
               </thead>
               <tbody>
@@ -91,16 +129,57 @@ export default function RemoteLibrary({ peerId, peerName, onClose }: Props) {
                           <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
                             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                           </svg>
-                          Pulled
+                          {pulled.get(item.id) === 'transfer' ? 'Transferring to library' : 'Pulled'}
                         </span>
+                      ) : pulling.has(item.id) ? (
+                        <span className="text-xs text-blue-400 flex items-center gap-1.5">
+                          <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                          </svg>
+                          {pulling.get(item.id) === 'transfer' ? 'Transferring...' : 'Pulling...'}
+                        </span>
+                      ) : transferTarget === item.id ? (
+                        <div className="flex items-center gap-1.5">
+                          <select
+                            value={selectedLibrary}
+                            onChange={(e) => setSelectedLibrary(e.target.value)}
+                            className="bg-gray-800 border border-gray-700 rounded px-1.5 py-1 text-xs text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            aria-label="Library"
+                          >
+                            <option value="">Default</option>
+                            {libraries.map((lib) => (
+                              <option key={lib.id} value={lib.id}>{lib.name}</option>
+                            ))}
+                          </select>
+                          <button
+                            onClick={() => handleTransfer(item.id)}
+                            className="text-xs px-2 py-1 rounded bg-green-600 hover:bg-green-700 text-white transition-colors"
+                          >
+                            Go
+                          </button>
+                          <button
+                            onClick={() => setTransferTarget(null)}
+                            className="text-xs px-2 py-1 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        </div>
                       ) : (
-                        <button
-                          onClick={() => handlePull(item.id)}
-                          disabled={pulling.has(item.id)}
-                          className="text-xs px-2.5 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50"
-                        >
-                          {pulling.has(item.id) ? 'Pulling...' : 'Pull'}
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => handlePull(item.id)}
+                            className="text-xs px-2.5 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+                          >
+                            Pull
+                          </button>
+                          <button
+                            onClick={() => openTransferPicker(item.id)}
+                            className="text-xs px-2.5 py-1 rounded bg-green-600 hover:bg-green-700 text-white transition-colors"
+                          >
+                            Transfer
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>
