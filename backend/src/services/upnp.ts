@@ -55,6 +55,12 @@ export async function startUpnp(): Promise<void> {
   client = promisifyClient(natUpnp.createClient({ timeout: 10000 }));
 
   try {
+    try {
+      await client.portUnmapping({ public: config.port });
+    } catch {
+      // ignore — no existing mapping to remove
+    }
+
     await client.portMapping({
       public: config.port,
       private: config.port,

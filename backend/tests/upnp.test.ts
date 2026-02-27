@@ -143,6 +143,32 @@ describe('UPnP Service - startUpnp', () => {
     expect(opts.ttl).toBe(0);
   });
 
+  it('removes existing mapping before creating a new one', async () => {
+    mockPortMapping.mockImplementation((_opts: any, cb: Function) => cb(null));
+    mockExternalIp.mockImplementation((cb: Function) => cb(null, '10.0.0.1'));
+
+    await startUpnp();
+
+    expect(mockPortUnmapping).toHaveBeenCalledTimes(1);
+    const unmapOpts = mockPortUnmapping.mock.calls[0][0];
+    expect(unmapOpts.public).toBe(3000);
+
+    const mapCallOrder = mockPortUnmapping.mock.invocationCallOrder[0];
+    const portMapOrder = mockPortMapping.mock.invocationCallOrder[0];
+    expect(mapCallOrder).toBeLessThan(portMapOrder);
+  });
+
+  it('still creates mapping when pre-cleanup unmapping fails', async () => {
+    mockPortUnmapping.mockImplementationOnce((_opts: any, cb: Function) => cb(new Error('no existing mapping')));
+    mockPortMapping.mockImplementation((_opts: any, cb: Function) => cb(null));
+    mockExternalIp.mockImplementation((cb: Function) => cb(null, '10.0.0.1'));
+
+    await startUpnp();
+
+    expect(getUpnpState().active).toBe(true);
+    expect(mockPortMapping).toHaveBeenCalledTimes(1);
+  });
+
   it('sets error state when port mapping fails', async () => {
     mockPortMapping.mockImplementation((_opts: any, cb: Function) => cb(new Error('Router not found')));
 
@@ -194,6 +220,7 @@ describe('UPnP Service - stopUpnp', () => {
     await startUpnp();
     expect(getUpnpState().active).toBe(true);
 
+    mockPortUnmapping.mockClear();
     await stopUpnp();
 
     expect(mockPortUnmapping).toHaveBeenCalledTimes(1);
