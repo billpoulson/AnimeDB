@@ -31,6 +31,9 @@ import {
   getUpnpState,
   getExternalUrl,
   setManualExternalUrl,
+  onRenew,
+  MAPPING_TTL,
+  RENEWAL_INTERVAL,
 } from '../src/services/upnp';
 
 describe('UPnP Service - state management', () => {
@@ -141,7 +144,7 @@ describe('UPnP Service - startUpnp', () => {
     expect(opts.public).toBe(3000);
     expect(opts.private).toBe(3000);
     expect(opts.description).toBe('AnimeDB');
-    expect(opts.ttl).toBe(0);
+    expect(opts.ttl).toBe(MAPPING_TTL);
   });
 
   it('removes existing mapping before creating a new one', async () => {
@@ -371,5 +374,167 @@ describe('UPnP Service - retryUpnp', () => {
     await retryUpnp(9090);
     expect(getUpnpState().externalPort).toBe(9090);
     expect(getUpnpState().externalUrl).toBe('http://5.6.7.8:9090');
+  });
+});
+
+describe('UPnP Service - lease renewal', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+  });
+
+  afterEach(async () => {
+    vi.useRealTimers();
+    await stopUpnp();
+    setManualExternalUrl(null);
+  });
+
+  it('exports MAPPING_TTL > 0 and a RENEWAL_INTERVAL', () => {
+    expect(MAPPING_TTL).toBeGreaterThan(0);
+    expect(RENEWAL_INTERVAL).toBeGreaterThan(0);
+    expect(RENEWAL_INTERVAL).toBeLessThan(MAPPING_TTL * 1000);
+  });
+
+  it('renews mapping after RENEWAL_INTERVAL', async () => {
+    mockPortMapping.mockImplementation((_opts: any, cb: Function) => cb(null));
+    mockExternalIp.mockImplementation((cb: Function) => cb(null, '1.2.3.4'));
+
+    await startUpnp();
+    expect(getUpnpState().active).toBe(true);
+
+    const initialMapCalls = mockPortMapping.mock.calls.length;
+
+    await vi.advanceTimersByTimeAsync(RENEWAL_INTERVAL);
+
+    expect(mockPortMapping.mock.calls.length).toBeGreaterThan(initialMapCalls);
+    expect(getUpnpState().active).toBe(true);
+  });
+
+  it('renewal uses correct TTL', async () => {
+    mockPortMapping.mockImplementation((_opts: any, cb: Function) => cb(null));
+    mockExternalIp.mockImplementation((cb: Function) => cb(null, '1.2.3.4'));
+
+    await startUpnp();
+
+    mockPortMapping.mockClear();
+    await vi.advanceTimersByTimeAsync(RENEWAL_INTERVAL);
+
+    expect(mockPortMapping).toHaveBeenCalledTimes(1);
+    expect(mockPortMapping.mock.calls[0][0].ttl).toBe(MAPPING_TTL);
+  });
+
+  it('keeps state active when renewal succeeds', async () => {
+    mockPortMapping.mockImplementation((_opts: any, cb: Function) => cb(null));
+    mockExternalIp.mockImplementation((cb: Function) => cb(null, '1.2.3.4'));
+
+    await startUpnp();
+
+    await vi.advanceTimersByTimeAsync(RENEWAL_INTERVAL);
+
+    const state = getUpnpState();
+    expect(state.active).toBe(true);
+    expect(state.externalIp).toBe('1.2.3.4');
+  });
+
+  it('stays active when renewal fails (will retry next interval)', async () => {
+    mockPortMapping.mockImplementation((_opts: any, cb: Function) => cb(null));
+    mockExternalIp.mockImplementation((cb: Function) => cb(null, '1.2.3.4'));
+
+    await startUpnp();
+    expect(getUpnpState().active).toBe(true);
+
+    mockPortMapping.mockImplementation((_opts: any, cb: Function) => cb(new Error('Renewal failed')));
+
+    await vi.advanceTimersByTimeAsync(RENEWAL_INTERVAL);
+
+    // State stays active so next renewal can try again
+    expect(getUpnpState().active).toBe(true);
+  });
+
+  it('detects IP change during renewal', async () => {
+    mockPortMapping.mockImplementation((_opts: any, cb: Function) => cb(null));
+    mockExternalIp.mockImplementation((cb: Function) => cb(null, '1.2.3.4'));
+
+    await startUpnp();
+    expect(getUpnpState().externalIp).toBe('1.2.3.4');
+
+    mockExternalIp.mockImplementation((cb: Function) => cb(null, '5.6.7.8'));
+
+    await vi.advanceTimersByTimeAsync(RENEWAL_INTERVAL);
+
+    expect(getUpnpState().externalIp).toBe('5.6.7.8');
+    expect(getUpnpState().externalUrl).toBe('http://5.6.7.8:3000');
+  });
+
+  it('fires onRenew callback after successful renewal', async () => {
+    mockPortMapping.mockImplementation((_opts: any, cb: Function) => cb(null));
+    mockExternalIp.mockImplementation((cb: Function) => cb(null, '1.2.3.4'));
+
+    const renewCallback = vi.fn();
+    onRenew(renewCallback);
+
+    await startUpnp();
+    expect(renewCallback).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(RENEWAL_INTERVAL);
+
+    expect(renewCallback).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not fire onRenew when renewal fails', async () => {
+    mockPortMapping.mockImplementation((_opts: any, cb: Function) => cb(null));
+    mockExternalIp.mockImplementation((cb: Function) => cb(null, '1.2.3.4'));
+
+    const renewCallback = vi.fn();
+    onRenew(renewCallback);
+
+    await startUpnp();
+
+    mockPortMapping.mockImplementation((_opts: any, cb: Function) => cb(new Error('fail')));
+
+    await vi.advanceTimersByTimeAsync(RENEWAL_INTERVAL);
+
+    expect(renewCallback).not.toHaveBeenCalled();
+  });
+
+  it('stopUpnp cancels the renewal timer', async () => {
+    mockPortMapping.mockImplementation((_opts: any, cb: Function) => cb(null));
+    mockExternalIp.mockImplementation((cb: Function) => cb(null, '1.2.3.4'));
+
+    await startUpnp();
+    const mapCallsAfterStart = mockPortMapping.mock.calls.length;
+
+    await stopUpnp();
+
+    mockPortMapping.mockClear();
+    await vi.advanceTimersByTimeAsync(RENEWAL_INTERVAL * 3);
+
+    expect(mockPortMapping).not.toHaveBeenCalled();
+  });
+
+  it('setManualExternalUrl stops renewal loop', async () => {
+    mockPortMapping.mockImplementation((_opts: any, cb: Function) => cb(null));
+    mockExternalIp.mockImplementation((cb: Function) => cb(null, '1.2.3.4'));
+
+    await startUpnp();
+
+    setManualExternalUrl('http://manual.test');
+    mockPortMapping.mockClear();
+
+    await vi.advanceTimersByTimeAsync(RENEWAL_INTERVAL * 3);
+
+    expect(mockPortMapping).not.toHaveBeenCalled();
+  });
+
+  it('renews multiple times over several intervals', async () => {
+    mockPortMapping.mockImplementation((_opts: any, cb: Function) => cb(null));
+    mockExternalIp.mockImplementation((cb: Function) => cb(null, '1.2.3.4'));
+
+    await startUpnp();
+    const initialCalls = mockPortMapping.mock.calls.length;
+
+    await vi.advanceTimersByTimeAsync(RENEWAL_INTERVAL * 3);
+
+    expect(mockPortMapping.mock.calls.length).toBe(initialCalls + 3);
   });
 });

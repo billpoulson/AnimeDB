@@ -4,8 +4,11 @@ import { config } from './config';
 import { initDb, getInstanceId } from './db';
 import { startQueue } from './services/queue';
 import { createApp } from './app';
-import { startUpnp, stopUpnp } from './services/upnp';
+import { startUpnp, stopUpnp, onRenew } from './services/upnp';
 import { announceToAllPeers } from './services/announce';
+import { createLogger } from './services/logger';
+
+const log = createLogger('app');
 
 const dbDir = path.dirname(config.dbPath);
 fs.mkdirSync(dbDir, { recursive: true });
@@ -13,20 +16,25 @@ fs.mkdirSync(config.downloadPath, { recursive: true });
 fs.mkdirSync(config.mediaPath, { recursive: true });
 
 initDb(config.dbPath);
-console.log(`Instance ID: ${getInstanceId()}`);
+log.info(`Instance ID: ${getInstanceId()}`);
 startQueue();
+
+onRenew(() => {
+  announceToAllPeers().catch((err) => log.warn(`Post-renewal announce failed: ${err.message}`));
+});
 
 const app = createApp();
 app.listen(config.port, () => {
-  console.log(`AnimeDB server running on port ${config.port}`);
+  log.info(`AnimeDB server running on port ${config.port}`);
   startUpnp()
     .then(() => announceToAllPeers())
     .catch((err) => {
-      console.warn('Startup network error:', err.message);
+      log.warn(`Startup network error: ${err.message}`);
     });
 });
 
 const shutdown = async () => {
+  log.info('Shutting down...');
   await stopUpnp();
   process.exit(0);
 };
