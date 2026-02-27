@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getPeerLibrary, pullFromPeer, getLibraries, RemoteLibraryItem, Library } from '../api/client';
+import { getPeerLibrary, pullFromPeer, replicateLibrary, getLibraries, RemoteLibraryItem, Library } from '../api/client';
 
 interface Props {
   peerId: string;
@@ -19,6 +19,10 @@ export default function RemoteLibrary({ peerId, peerName, onClose }: Props) {
   const [libraries, setLibraries] = useState<Library[]>([]);
   const [transferTarget, setTransferTarget] = useState<string | null>(null);
   const [selectedLibrary, setSelectedLibrary] = useState('');
+  const [replicating, setReplicating] = useState(false);
+  const [replicateResult, setReplicateResult] = useState<{ queued: number; skipped: number; total: number } | null>(null);
+  const [showReplicatePicker, setShowReplicatePicker] = useState(false);
+  const [replicateLibraryId, setReplicateLibraryId] = useState('');
 
   useEffect(() => {
     setLoading(true);
@@ -82,6 +86,32 @@ export default function RemoteLibrary({ peerId, peerName, onClose }: Props) {
     }
   };
 
+  const handleReplicate = async () => {
+    setReplicating(true);
+    setReplicateResult(null);
+    setShowReplicatePicker(false);
+    try {
+      const result = await replicateLibrary(peerId, {
+        libraryId: replicateLibraryId || undefined,
+      });
+      setReplicateResult(result);
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Replicate failed');
+    } finally {
+      setReplicating(false);
+      setReplicateLibraryId('');
+    }
+  };
+
+  const openReplicatePicker = () => {
+    if (libraries.length === 0) {
+      handleReplicate();
+    } else {
+      setShowReplicatePicker(true);
+      setReplicateLibraryId('');
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
       <div className="bg-gray-900 border border-gray-800 rounded-xl w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl">
@@ -92,11 +122,65 @@ export default function RemoteLibrary({ peerId, peerName, onClose }: Props) {
               <p className="text-xs text-gray-500">{instanceName}</p>
             )}
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors p-1">
-            <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-            </svg>
-          </button>
+          <div className="flex items-center gap-3">
+            {!loading && !error && items.length > 0 && (
+              showReplicatePicker ? (
+                <div className="flex items-center gap-1.5">
+                  <select
+                    value={replicateLibraryId}
+                    onChange={(e) => setReplicateLibraryId(e.target.value)}
+                    className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                  >
+                    <option value="">Default location</option>
+                    {libraries.map((lib) => (
+                      <option key={lib.id} value={lib.id}>{lib.name}</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={handleReplicate}
+                    className="text-xs px-2.5 py-1 rounded bg-purple-600 hover:bg-purple-700 text-white transition-colors"
+                  >
+                    Go
+                  </button>
+                  <button
+                    onClick={() => setShowReplicatePicker(false)}
+                    className="text-xs px-2 py-1 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : replicating ? (
+                <span className="text-xs text-purple-400 flex items-center gap-1.5">
+                  <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Replicating...
+                </span>
+              ) : replicateResult ? (
+                <span className="text-xs text-green-400">
+                  {replicateResult.queued > 0
+                    ? `${replicateResult.queued} queued, ${replicateResult.skipped} already local`
+                    : 'Everything already replicated'}
+                </span>
+              ) : (
+                <button
+                  onClick={openReplicatePicker}
+                  className="text-xs px-3 py-1.5 rounded bg-purple-600 hover:bg-purple-700 text-white transition-colors flex items-center gap-1.5"
+                >
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M7 2a2 2 0 00-2 2v1a2 2 0 002 2h1v1H5a2 2 0 00-2 2v5a2 2 0 002 2h10a2 2 0 002-2v-5a2 2 0 00-2-2h-3V7h1a2 2 0 002-2V4a2 2 0 00-2-2H7zm0 2h6v1H7V4zm-2 6h10v5H5v-5z" />
+                  </svg>
+                  Replicate Library
+                </button>
+              )
+            )}
+            <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors p-1">
+              <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-5">

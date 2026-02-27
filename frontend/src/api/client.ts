@@ -272,6 +272,14 @@ export async function pullFromPeer(
   return res.data;
 }
 
+export async function replicateLibrary(
+  peerId: string,
+  opts?: { libraryId?: string },
+): Promise<{ queued: number; skipped: number; total: number }> {
+  const res = await api.post(`/peers/${peerId}/replicate`, opts || {});
+  return res.data;
+}
+
 // Networking
 
 export interface NetworkingInfo {
