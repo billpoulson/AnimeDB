@@ -14,6 +14,7 @@ export default function Docs() {
           <li><a href="#plex" className="text-blue-400 hover:text-blue-300">Plex Integration</a></li>
           <li><a href="#federation" className="text-blue-400 hover:text-blue-300">Federation &amp; Peers</a></li>
           <li><a href="#networking" className="text-blue-400 hover:text-blue-300">Networking &amp; UPnP</a></li>
+          <li><a href="#upnp-troubleshooting" className="text-blue-400 hover:text-blue-300">UPnP Troubleshooting</a></li>
           <li><a href="#self-healing" className="text-blue-400 hover:text-blue-300">Self-Healing Mesh</a></li>
           <li><a href="#docker" className="text-blue-400 hover:text-blue-300">Docker &amp; Configuration</a></li>
         </ul>
@@ -168,6 +169,75 @@ export default function Docs() {
         <p>
           Each instance has a permanent UUID (shown in the Networking section). This ID never changes, even if your
           IP or URL does. It is used by the self-healing mesh to track peers across address changes.
+        </p>
+      </section>
+
+      {/* ── UPnP Troubleshooting ── */}
+      <section id="upnp-troubleshooting" className="mb-10">
+        <h2 className="text-xl font-semibold border-b border-gray-800 pb-2">UPnP Troubleshooting</h2>
+        <p>
+          If UPnP shows <strong>Unavailable</strong> or times out on the Peers page, your instance cannot
+          automatically open a port on your router. This prevents peers from connecting to you. Here are the
+          most common causes and fixes:
+        </p>
+
+        <h3 className="text-lg font-medium mt-4">1. Router does not support or has disabled UPnP</h3>
+        <p>Many routers ship with UPnP disabled by default. Log in to your router&rsquo;s admin panel (usually <code>192.168.1.1</code> or <code>192.168.0.1</code>) and look for a UPnP setting under <em>Advanced</em>, <em>NAT</em>, or <em>Firewall</em>. Enable it and restart AnimeDB.</p>
+
+        <h3 className="text-lg font-medium mt-4">2. Docker networking blocks UPnP discovery</h3>
+        <p>
+          UPnP relies on multicast traffic on the local network. Docker&rsquo;s default bridge network isolates the
+          container from LAN multicast. Solutions:
+        </p>
+        <ul>
+          <li><strong>Linux:</strong> Add <code>network_mode: host</code> to your <code>docker-compose.yml</code>. This gives the container direct LAN access.</li>
+          <li><strong>Docker Desktop (Windows/Mac):</strong> UPnP <strong>will not work</strong> because Docker Desktop runs containers inside a Linux VM that has no direct LAN access. Skip to option 5 below.</li>
+        </ul>
+
+        <h3 className="text-lg font-medium mt-4">3. Double NAT</h3>
+        <p>
+          If you&rsquo;re behind two routers (e.g., ISP modem + your own router), UPnP can only open a port on the
+          closest router. You&rsquo;ll need to either put the ISP modem in bridge mode or manually forward the port
+          on both devices.
+        </p>
+
+        <h3 className="text-lg font-medium mt-4">4. CGNAT (Carrier-Grade NAT)</h3>
+        <p>
+          Some ISPs place customers behind CGNAT, meaning you don&rsquo;t have a public IP at all. UPnP won&rsquo;t
+          help in this case. You can check by comparing your router&rsquo;s WAN IP with your public IP
+          (e.g., <code>curl ifconfig.me</code>). If they differ, you&rsquo;re behind CGNAT. Options:
+        </p>
+        <ul>
+          <li>Ask your ISP for a dedicated public IP.</li>
+          <li>Use a tunnel service (Cloudflare Tunnel, Tailscale, WireGuard) and set <code>EXTERNAL_URL</code> to the tunnel address.</li>
+        </ul>
+
+        <h3 className="text-lg font-medium mt-4">5. Set the External URL manually</h3>
+        <p>
+          If UPnP isn&rsquo;t an option, you can always bypass it entirely by setting the External URL yourself.
+          There are two ways:
+        </p>
+        <ul>
+          <li><strong>Environment variable:</strong> Set <code>EXTERNAL_URL=http://your-ip:3000</code> in your <code>.env</code> or <code>docker-compose.yml</code>. AnimeDB will skip UPnP entirely when this is set.</li>
+          <li><strong>UI:</strong> On the <strong>Peers &rarr; Networking</strong> section, type your public address into the External URL field and click <strong>Set</strong>.</li>
+        </ul>
+        <p>
+          If you set the URL manually, make sure the port is forwarded on your router (or you&rsquo;re using a
+          tunnel/reverse proxy) so peers can actually reach it.
+        </p>
+
+        <h3 className="text-lg font-medium mt-4">6. Firewall blocking port 3000</h3>
+        <p>
+          Even if UPnP succeeds, a host or OS firewall may block inbound connections. On Linux, check
+          with <code>sudo ufw status</code> or <code>sudo iptables -L</code>. On Windows, check Windows Defender
+          Firewall. Allow inbound TCP on port 3000 (or whichever port you configured).
+        </p>
+
+        <h3 className="text-lg font-medium mt-4">Still stuck?</h3>
+        <p>
+          If none of the above works, the quickest path is to set up a Cloudflare Tunnel (free) or Tailscale
+          (free for personal use), point it at <code>localhost:3000</code>, and enter the resulting public URL as
+          your External URL. This avoids all router and NAT issues entirely.
         </p>
       </section>
 

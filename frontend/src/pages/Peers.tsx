@@ -161,7 +161,10 @@ export default function Peers() {
                     Active ({networking.upnp.externalIp})
                   </span>
                 ) : networking.upnp.error ? (
-                  <span className="text-xs text-yellow-400">Unavailable: {networking.upnp.error}</span>
+                  <span className="text-xs text-yellow-400">
+                    Unavailable: {networking.upnp.error}
+                    {' '}<a href="/docs#upnp-troubleshooting" className="underline hover:text-yellow-300">Troubleshoot</a>
+                  </span>
                 ) : (
                   <span className="text-xs text-gray-500">Not active (manual URL set)</span>
                 )}
@@ -194,7 +197,8 @@ export default function Peers() {
               </div>
               {!networking.externalUrl && (
                 <p className="text-xs text-yellow-400 ml-[7.5rem]">
-                  No external URL detected. Set one manually or enable UPnP (Linux Docker with host networking).
+                  No external URL detected. Set one manually or enable UPnP.
+                  {' '}<a href="/docs#upnp-troubleshooting" className="underline hover:text-yellow-300">See troubleshooting guide</a>
                 </p>
               )}
             </>
