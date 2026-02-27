@@ -15,8 +15,18 @@ interface MockDownload {
   updated_at: string;
 }
 
+async function mockAuthAsAuthenticated(page: Page) {
+  await page.route('**/api/auth/status', async (route) => {
+    await route.fulfill({
+      json: { setup: true, authenticated: true, authRequired: false },
+    });
+  });
+}
+
 async function setupApiMocks(page: Page) {
   const downloads: MockDownload[] = [];
+
+  await mockAuthAsAuthenticated(page);
 
   await page.route('**/api/downloads', async (route) => {
     const method = route.request().method();
@@ -163,6 +173,7 @@ test.describe('Library', () => {
   });
 
   test('shows completed downloads in table', async ({ page }) => {
+    await mockAuthAsAuthenticated(page);
     await page.route('**/api/downloads', async (route) => {
       await route.fulfill({
         json: [

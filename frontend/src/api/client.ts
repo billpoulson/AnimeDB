@@ -39,7 +39,11 @@ export interface AuthStatus {
 
 export async function getAuthStatus(): Promise<AuthStatus> {
   const res = await api.get('/auth/status');
-  return res.data;
+  const data = res.data;
+  if (typeof data !== 'object' || data === null || typeof data.authRequired !== 'boolean') {
+    throw new Error('Invalid auth status response');
+  }
+  return data;
 }
 
 export async function authSetup(password: string): Promise<string> {
