@@ -17,7 +17,7 @@ irm https://raw.githubusercontent.com/billpoulson/AnimeDB/main/install.ps1 | iex
 If the CDN is serving a stale version, use the versioned script instead:
 
 ```powershell
-irm https://raw.githubusercontent.com/billpoulson/AnimeDB/main/install_v10.ps1 | iex
+irm https://raw.githubusercontent.com/billpoulson/AnimeDB/main/install_v11.ps1 | iex
 ```
 
 **Bash (Linux / macOS):**
@@ -51,8 +51,15 @@ cp .env.example .env
 | `PLEX_TOKEN` | No | Plex authentication token |
 | `PLEX_SECTION_MOVIES` | No | Plex library section ID for movies (default: `1`) |
 | `PLEX_SECTION_TV` | No | Plex library section ID for TV shows (default: `2`) |
+| `EXTERNAL_URL` | No | Override the auto-discovered external URL for federation |
 
 Plex integration is entirely optional. If you leave `PLEX_URL` and `PLEX_TOKEN` empty, everything else works normally.
+
+### Networking
+
+The default `docker-compose.yml` uses `network_mode: host` so UPnP can discover your router for automatic port forwarding. The app listens on port **3000** directly on the host.
+
+> **Note:** `network_mode: host` is a Linux feature. On **Windows/Mac** with Docker Desktop, remove `network_mode: host`, add `ports: ["3000:3000"]`, and set `EXTERNAL_URL` manually in `.env` if you need federation.
 
 ### 2. Start the application
 
