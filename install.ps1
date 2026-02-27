@@ -10,6 +10,21 @@
 
 $ErrorActionPreference = "Stop"
 
+Write-Host "`n==> Checking prerequisites..." -ForegroundColor Cyan
+$dockerCmd = Get-Command docker -ErrorAction SilentlyContinue
+if (-not $dockerCmd) {
+    Write-Host "`nERROR: Docker is not installed or not in PATH." -ForegroundColor Red
+    Write-Host "Please install Docker Desktop from https://docs.docker.com/get-docker/ and restart your terminal.`n" -ForegroundColor Yellow
+    return
+}
+try { $dockerVersion = docker version --format '{{.Server.Version}}' 2>&1 | Out-String } catch { $dockerVersion = "" }
+if (-not $dockerVersion -or $dockerVersion -match "error") {
+    Write-Host "`nERROR: Docker is installed but the daemon is not running." -ForegroundColor Red
+    Write-Host "Please start Docker Desktop and try again.`n" -ForegroundColor Yellow
+    return
+}
+Write-Host "    Docker found: $($dockerVersion.Trim())" -ForegroundColor Gray
+
 $Repo       = "billpoulson/AnimeDB"
 $Branch     = "main"
 $ArchiveUrl = "https://github.com/$Repo/archive/refs/heads/$Branch.zip"

@@ -1,6 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+echo "==> Checking prerequisites..."
+if ! command -v docker &>/dev/null; then
+    echo ""
+    echo "ERROR: Docker is not installed or not in PATH."
+    echo "Please install Docker from https://docs.docker.com/get-docker/ and restart your terminal."
+    exit 1
+fi
+if ! docker version --format '{{.Server.Version}}' &>/dev/null; then
+    echo ""
+    echo "ERROR: Docker is installed but the daemon is not running."
+    echo "Please start Docker Desktop (or the Docker service) and try again."
+    exit 1
+fi
+echo "    Docker found: $(docker version --format '{{.Server.Version}}')"
+
 REPO="billpoulson/AnimeDB"
 BRANCH="main"
 ARCHIVE_URL="https://github.com/${REPO}/archive/refs/heads/${BRANCH}.zip"
