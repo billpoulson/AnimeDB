@@ -150,6 +150,87 @@ describe('Peers API', () => {
   });
 });
 
+describe('POST /api/peers/connect', () => {
+  let request: ReturnType<typeof supertest>;
+
+  beforeEach(() => {
+    initDb(':memory:');
+    request = supertest(createApp());
+  });
+
+  afterEach(() => {
+    closeDb();
+  });
+
+  it('rejects missing connectionString', async () => {
+    const res = await request.post('/api/peers/connect').send({});
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain('connectionString is required');
+  });
+
+  it('rejects non-string connectionString', async () => {
+    const res = await request.post('/api/peers/connect').send({ connectionString: 123 });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain('connectionString is required');
+  });
+
+  it('rejects invalid base64', async () => {
+    const res = await request.post('/api/peers/connect').send({ connectionString: 'adb-connect:not-valid-base64!!!' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain('Invalid connection string');
+  });
+
+  it('rejects connection string missing required fields', async () => {
+    const payload = Buffer.from(JSON.stringify({ url: 'http://x' })).toString('base64');
+    const res = await request.post('/api/peers/connect').send({ connectionString: `adb-connect:${payload}` });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain('missing required fields');
+  });
+
+  it('rejects connection string with empty name', async () => {
+    const payload = Buffer.from(JSON.stringify({ url: 'http://x', name: '', key: 'k' })).toString('base64');
+    const res = await request.post('/api/peers/connect').send({ connectionString: `adb-connect:${payload}` });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain('missing required fields');
+  });
+
+  it('rejects connection string with empty url', async () => {
+    const payload = Buffer.from(JSON.stringify({ url: '', name: 'N', key: 'k' })).toString('base64');
+    const res = await request.post('/api/peers/connect').send({ connectionString: `adb-connect:${payload}` });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain('missing required fields');
+  });
+
+  it('rejects connection string with empty key', async () => {
+    const payload = Buffer.from(JSON.stringify({ url: 'http://x', name: 'N', key: '' })).toString('base64');
+    const res = await request.post('/api/peers/connect').send({ connectionString: `adb-connect:${payload}` });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain('missing required fields');
+  });
+
+  it('rejects unreachable peer in connection string', async () => {
+    const payload = Buffer.from(JSON.stringify({
+      url: 'http://192.0.2.1:1',
+      name: 'Unreachable',
+      key: 'adb_fake',
+    })).toString('base64');
+    const res = await request.post('/api/peers/connect').send({ connectionString: `adb-connect:${payload}` });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain('Cannot reach');
+  }, 15000);
+
+  it('works without adb-connect: prefix (raw base64)', async () => {
+    const payload = Buffer.from(JSON.stringify({
+      url: 'http://192.0.2.1:1',
+      name: 'RawBase64',
+      key: 'adb_fake',
+    })).toString('base64');
+    const res = await request.post('/api/peers/connect').send({ connectionString: payload });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain('Cannot reach');
+  }, 15000);
+});
+
 describe('Peers API - self-federation integration', () => {
   let request: ReturnType<typeof supertest>;
 
@@ -214,6 +295,75 @@ describe('Peers API - self-federation integration', () => {
       });
       expect(res.status).toBe(400);
       expect(res.body.error).toContain('401');
+    } finally {
+      server.close();
+    }
+  });
+
+  it('can add self via connection string round-trip', async () => {
+    const app = createApp();
+    const server = app.listen(0);
+    const addr = server.address() as any;
+    const selfUrl = `http://127.0.0.1:${addr.port}`;
+    const selfRequest = supertest(app);
+
+    try {
+      const payload = JSON.stringify({ url: selfUrl, name: 'SelfNode', key: '' });
+
+      const keyRes = await selfRequest.post('/api/keys').send({ label: 'connect-test' });
+      expect(keyRes.status).toBe(201);
+      const apiKey = keyRes.body.key;
+
+      const connStr = `adb-connect:${Buffer.from(JSON.stringify({ url: selfUrl, name: 'SelfNode', key: apiKey })).toString('base64')}`;
+
+      const connectRes = await selfRequest.post('/api/peers/connect').send({ connectionString: connStr });
+      expect(connectRes.status).toBe(201);
+      expect(connectRes.body.name).toBe('SelfNode');
+      expect(connectRes.body.url).toBe(selfUrl);
+      expect(connectRes.body.instance_id).toBeTruthy();
+
+      const peers = await selfRequest.get('/api/peers');
+      expect(peers.body).toHaveLength(1);
+      expect(peers.body[0].name).toBe('SelfNode');
+    } finally {
+      server.close();
+    }
+  });
+
+  it('rejects connection string with wrong API key via self-connect', async () => {
+    const app = createApp();
+    const server = app.listen(0);
+    const addr = server.address() as any;
+    const selfUrl = `http://127.0.0.1:${addr.port}`;
+    const selfRequest = supertest(app);
+
+    try {
+      const connStr = `adb-connect:${Buffer.from(JSON.stringify({ url: selfUrl, name: 'Bad', key: 'adb_wrong' })).toString('base64')}`;
+
+      const res = await selfRequest.post('/api/peers/connect').send({ connectionString: connStr });
+      expect(res.status).toBe(400);
+      expect(res.body.error).toContain('401');
+    } finally {
+      server.close();
+    }
+  });
+
+  it('strips trailing slashes from URL in connection string', async () => {
+    const app = createApp();
+    const server = app.listen(0);
+    const addr = server.address() as any;
+    const selfUrl = `http://127.0.0.1:${addr.port}`;
+    const selfRequest = supertest(app);
+
+    try {
+      const keyRes = await selfRequest.post('/api/keys').send({ label: 'slash-test' });
+      const apiKey = keyRes.body.key;
+
+      const connStr = `adb-connect:${Buffer.from(JSON.stringify({ url: `${selfUrl}///`, name: 'SlashNode', key: apiKey })).toString('base64')}`;
+
+      const connectRes = await selfRequest.post('/api/peers/connect').send({ connectionString: connStr });
+      expect(connectRes.status).toBe(201);
+      expect(connectRes.body.url).toBe(selfUrl);
     } finally {
       server.close();
     }
