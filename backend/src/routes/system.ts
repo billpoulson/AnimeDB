@@ -5,7 +5,9 @@ import path from 'path';
 import fs from 'fs';
 import axios from 'axios';
 import { config } from '../config';
+import { createLogger } from '../services/logger';
 
+const log = createLogger('update');
 const execAsync = promisify(exec);
 const router = Router();
 
@@ -71,16 +73,16 @@ router.post('/update', async (_req: Request, res: Response) => {
         const backendDir = path.join(tmpDir, 'backend');
         const frontendDir = path.join(tmpDir, 'frontend');
 
-        console.log('Update: installing backend dependencies...');
+        log.info('installing backend dependencies...');
         await execAsync('npm ci', { cwd: backendDir, timeout: 300000 });
 
-        console.log('Update: compiling backend...');
+        log.info('compiling backend...');
         await execAsync('npx tsc', { cwd: backendDir, timeout: 120000 });
 
-        console.log('Update: installing frontend dependencies...');
+        log.info('installing frontend dependencies...');
         await execAsync('npm ci', { cwd: frontendDir, timeout: 300000 });
 
-        console.log('Update: building frontend...');
+        log.info('building frontend...');
         await execAsync('npx vite build', { cwd: frontendDir, timeout: 120000 });
 
         const builtBackendDist = path.join(backendDir, 'dist');
@@ -91,12 +93,24 @@ router.post('/update', async (_req: Request, res: Response) => {
         }
 
         const appBackendDist = path.resolve(__dirname, '..');
+        const appBackendRoot = path.resolve(__dirname, '../..');
         const appFrontendDist = path.resolve(__dirname, '../../../frontend/dist');
 
-        console.log('Update: replacing backend dist...');
+        log.info('Updating production node_modules...');
+        fs.copyFileSync(
+          path.join(backendDir, 'package.json'),
+          path.join(appBackendRoot, 'package.json'),
+        );
+        fs.copyFileSync(
+          path.join(backendDir, 'package-lock.json'),
+          path.join(appBackendRoot, 'package-lock.json'),
+        );
+        await execAsync('npm ci --omit=dev', { cwd: appBackendRoot, timeout: 300000 });
+
+        log.info('replacing backend dist...');
         await execAsync(`rm -rf "${appBackendDist}" && cp -r "${builtBackendDist}" "${appBackendDist}"`);
 
-        console.log('Update: replacing frontend dist...');
+        log.info('replacing frontend dist...');
         await execAsync(`rm -rf "${appFrontendDist}" && cp -r "${builtFrontendDist}" "${appFrontendDist}"`);
 
         const latestShaRes = await axios.get(
@@ -105,12 +119,12 @@ router.post('/update', async (_req: Request, res: Response) => {
         );
         fs.writeFileSync(path.resolve(__dirname, '../../../BUILD_SHA'), latestShaRes.data.sha);
 
-        console.log('Update: complete. Restarting...');
+        log.info('complete. Restarting...');
         fs.rmSync(tmpDir, { recursive: true, force: true });
 
         process.exit(0);
       } catch (err: any) {
-        console.error('Update failed:', err.message);
+        log.error('Update failed: ' + err.message);
         updateInProgress = false;
         try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch {}
       }
