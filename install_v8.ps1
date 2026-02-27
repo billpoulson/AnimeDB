@@ -71,4 +71,11 @@ $env:BUILD_SHA = $sha
 Write-Host "==> Starting AnimeDB with Docker Compose (SHA: $sha)..." -ForegroundColor Cyan
 docker compose up --build -d
 
+$container = docker compose ps --format '{{.Name}} {{.State}}' 2>&1 | Out-String
+if ($LASTEXITCODE -ne 0 -or $container -match "exited" -or -not ($container -match "running")) {
+    Write-Host "`nERROR: Docker Compose did not start correctly." -ForegroundColor Red
+    Write-Host "Check the logs with: docker compose logs" -ForegroundColor Yellow
+    return
+}
+
 Write-Host "`nDone! AnimeDB is running at http://localhost:3000" -ForegroundColor Green

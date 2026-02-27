@@ -56,5 +56,12 @@ export BUILD_SHA
 echo "==> Starting AnimeDB with Docker Compose (SHA: ${BUILD_SHA})..."
 docker compose up --build -d
 
+if ! docker compose ps --format '{{.State}}' 2>/dev/null | grep -q "running"; then
+    echo ""
+    echo "ERROR: Docker Compose did not start correctly."
+    echo "Check the logs with: docker compose logs"
+    exit 1
+fi
+
 echo ""
 echo "Done! AnimeDB is running at http://localhost:3000"
