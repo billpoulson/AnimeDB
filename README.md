@@ -17,7 +17,7 @@ irm https://raw.githubusercontent.com/billpoulson/AnimeDB/main/install.ps1 | iex
 If the CDN is serving a stale version, use the versioned script instead:
 
 ```powershell
-irm https://raw.githubusercontent.com/billpoulson/AnimeDB/main/install_v13.ps1 | iex
+irm https://raw.githubusercontent.com/billpoulson/AnimeDB/main/install_v14.ps1 | iex
 ```
 
 **Bash (Linux / macOS):**
@@ -57,9 +57,11 @@ Plex integration is entirely optional. If you leave `PLEX_URL` and `PLEX_TOKEN` 
 
 ### Networking
 
-The default `docker-compose.yml` uses `network_mode: host` so UPnP can discover your router for automatic port forwarding. The app listens on port **3000** directly on the host.
+By default the container uses bridge networking with port **3000** mapped to the host. This works on all platforms.
 
-> **Note:** `network_mode: host` is a Linux feature. On **Windows/Mac** with Docker Desktop, remove `network_mode: host`, add `ports: ["3000:3000"]`, and set `EXTERNAL_URL` manually in `.env` if you need federation.
+For **UPnP auto-discovery** (Linux only), set `NETWORK_MODE=host` in your `.env` file. This gives the container direct LAN access so it can discover your router and create port mappings automatically.
+
+On **Windows/Mac** with Docker Desktop, UPnP cannot work through Docker's VM. Set `EXTERNAL_URL` in `.env` manually if you need peer federation.
 
 ### 2. Start the application
 

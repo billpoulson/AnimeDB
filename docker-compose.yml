@@ -4,7 +4,9 @@ services:
       context: .
       args:
         BUILD_SHA: ${BUILD_SHA:-unknown}
-    network_mode: host
+    network_mode: ${NETWORK_MODE:-bridge}
+    ports:
+      - "${PORT:-3000}:3000"
     volumes:
       - ./data:/data
       - ./downloads:/downloads
