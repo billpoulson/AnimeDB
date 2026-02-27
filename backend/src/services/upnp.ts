@@ -9,6 +9,7 @@ interface UpnpState {
   active: boolean;
   externalIp: string | null;
   externalUrl: string | null;
+  externalPort: number | null;
   error: string | null;
 }
 
@@ -16,11 +17,13 @@ let state: UpnpState = {
   active: false,
   externalIp: null,
   externalUrl: null,
+  externalPort: null,
   error: null,
 };
 
 let manualExternalUrl: string | null = config.externalUrl || null;
 let client: any = null;
+let mappedPort: number | null = null;
 
 function promisifyClient(c: any) {
   return {
@@ -45,56 +48,95 @@ function promisifyClient(c: any) {
   };
 }
 
+function ensureClient() {
+  if (!client) {
+    client = promisifyClient(natUpnp.createClient({ timeout: 10000 }));
+  }
+  return client;
+}
+
+async function mapPort(publicPort: number): Promise<void> {
+  const c = ensureClient();
+
+  try {
+    await c.portUnmapping({ public: publicPort });
+  } catch {
+    // ignore — no existing mapping to remove
+  }
+
+  if (mappedPort && mappedPort !== publicPort) {
+    try {
+      await c.portUnmapping({ public: mappedPort });
+    } catch {
+      // best-effort cleanup of previous alternate port
+    }
+  }
+
+  await c.portMapping({
+    public: publicPort,
+    private: config.port,
+    description: MAPPING_DESCRIPTION,
+    ttl: MAPPING_TTL,
+  });
+
+  const ip = await c.externalIp();
+  const url = `http://${ip}:${publicPort}`;
+
+  mappedPort = publicPort;
+  state = { active: true, externalIp: ip, externalUrl: url, externalPort: publicPort, error: null };
+  console.log(`UPnP port mapping active: ${url}`);
+}
+
 export async function startUpnp(): Promise<void> {
   if (manualExternalUrl) {
-    state = { active: false, externalIp: null, externalUrl: manualExternalUrl, error: null };
+    state = { active: false, externalIp: null, externalUrl: manualExternalUrl, externalPort: null, error: null };
     console.log(`Using manual external URL: ${manualExternalUrl}`);
     return;
   }
 
-  client = promisifyClient(natUpnp.createClient({ timeout: 10000 }));
-
   try {
-    try {
-      await client.portUnmapping({ public: config.port });
-    } catch {
-      // ignore — no existing mapping to remove
-    }
-
-    await client.portMapping({
-      public: config.port,
-      private: config.port,
-      description: MAPPING_DESCRIPTION,
-      ttl: MAPPING_TTL,
-    });
-
-    const ip = await client.externalIp();
-    const url = `http://${ip}:${config.port}`;
-
-    state = { active: true, externalIp: ip, externalUrl: url, error: null };
-    console.log(`UPnP port mapping active: ${url}`);
+    await mapPort(config.port);
   } catch (err: any) {
     state = {
       active: false,
       externalIp: null,
       externalUrl: null,
+      externalPort: null,
       error: err.message || 'UPnP discovery failed',
     };
     console.warn(`UPnP failed: ${state.error}. Set EXTERNAL_URL manually if you need federation.`);
   }
 }
 
+export async function retryUpnp(publicPort: number): Promise<UpnpState> {
+  try {
+    await mapPort(publicPort);
+  } catch (err: any) {
+    state = {
+      active: false,
+      externalIp: null,
+      externalUrl: null,
+      externalPort: null,
+      error: err.message || 'UPnP mapping failed',
+    };
+    console.warn(`UPnP retry on port ${publicPort} failed: ${state.error}`);
+  }
+  return getUpnpState();
+}
+
 export async function stopUpnp(): Promise<void> {
   if (!client || !state.active) return;
 
+  const portToUnmap = mappedPort || config.port;
   try {
-    await client.portUnmapping({ public: config.port });
+    await client.portUnmapping({ public: portToUnmap });
     console.log('UPnP port mapping removed');
   } catch {
     // best-effort cleanup
   } finally {
     client.close();
     client = null;
+    mappedPort = null;
     state.active = false;
   }
 }

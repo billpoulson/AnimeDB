@@ -281,6 +281,7 @@ export interface NetworkingInfo {
   upnp: {
     active: boolean;
     externalIp: string | null;
+    externalPort: number | null;
     error: string | null;
   };
 }
@@ -292,6 +293,14 @@ export async function getNetworking(): Promise<NetworkingInfo> {
 
 export async function setExternalUrl(url: string | null): Promise<{ externalUrl: string | null }> {
   const res = await api.put('/networking/external-url', { url });
+  return res.data;
+}
+
+export async function retryUpnp(port?: number): Promise<{
+  externalUrl: string | null;
+  upnp: NetworkingInfo['upnp'];
+}> {
+  const res = await api.post('/networking/upnp-retry', port ? { port } : {});
   return res.data;
 }
 

@@ -11,11 +11,13 @@ vi.mock('../src/services/plexClient', () => ({
 const mockGetUpnpState = vi.fn();
 const mockGetExternalUrl = vi.fn();
 const mockSetManualExternalUrl = vi.fn();
+const mockRetryUpnp = vi.fn();
 
 vi.mock('../src/services/upnp', () => ({
   getUpnpState: (...args: any[]) => mockGetUpnpState(...args),
   getExternalUrl: (...args: any[]) => mockGetExternalUrl(...args),
   setManualExternalUrl: (...args: any[]) => mockSetManualExternalUrl(...args),
+  retryUpnp: (...args: any[]) => mockRetryUpnp(...args),
 }));
 
 vi.mock('../src/config', () => ({
@@ -137,6 +139,56 @@ describe('Networking API', () => {
 
       expect(res.status).toBe(400);
       expect(res.body.error).toContain('string or null');
+    });
+  });
+
+  describe('POST /api/networking/upnp-retry', () => {
+    it('retries UPnP with default port', async () => {
+      mockRetryUpnp.mockResolvedValue({ active: true, externalIp: '1.2.3.4', externalUrl: 'http://1.2.3.4:3000', externalPort: 3000, error: null });
+      mockGetExternalUrl.mockReturnValue('http://1.2.3.4:3000');
+
+      const res = await request.post('/api/networking/upnp-retry').send({});
+
+      expect(res.status).toBe(200);
+      expect(mockRetryUpnp).toHaveBeenCalledWith(3000);
+      expect(res.body.upnp.active).toBe(true);
+      expect(res.body.externalUrl).toBe('http://1.2.3.4:3000');
+    });
+
+    it('retries UPnP with alternate port', async () => {
+      mockRetryUpnp.mockResolvedValue({ active: true, externalIp: '1.2.3.4', externalUrl: 'http://1.2.3.4:4000', externalPort: 4000, error: null });
+      mockGetExternalUrl.mockReturnValue('http://1.2.3.4:4000');
+
+      const res = await request.post('/api/networking/upnp-retry').send({ port: 4000 });
+
+      expect(res.status).toBe(200);
+      expect(mockRetryUpnp).toHaveBeenCalledWith(4000);
+      expect(res.body.upnp.externalPort).toBe(4000);
+    });
+
+    it('returns error state when retry fails', async () => {
+      mockRetryUpnp.mockResolvedValue({ active: false, externalIp: null, externalUrl: null, externalPort: null, error: 'Port in use' });
+      mockGetExternalUrl.mockReturnValue(null);
+
+      const res = await request.post('/api/networking/upnp-retry').send({ port: 80 });
+
+      expect(res.status).toBe(200);
+      expect(res.body.upnp.active).toBe(false);
+      expect(res.body.upnp.error).toBe('Port in use');
+    });
+
+    it('rejects invalid port values', async () => {
+      const res = await request.post('/api/networking/upnp-retry').send({ port: 'abc' });
+      expect(res.status).toBe(400);
+
+      const res2 = await request.post('/api/networking/upnp-retry').send({ port: 0 });
+      expect(res2.status).toBe(400);
+
+      const res3 = await request.post('/api/networking/upnp-retry').send({ port: 70000 });
+      expect(res3.status).toBe(400);
+
+      const res4 = await request.post('/api/networking/upnp-retry').send({ port: 3.5 });
+      expect(res4.status).toBe(400);
     });
   });
 });

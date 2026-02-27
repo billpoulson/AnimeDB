@@ -3,7 +3,7 @@ import {
   ApiKey, Peer, NetworkingInfo, ApiKeyCreated,
   getApiKeys, createApiKey, deleteApiKey,
   getPeers, addPeer, deletePeer, connectPeer,
-  getNetworking, setExternalUrl, resolvePeer,
+  getNetworking, setExternalUrl, resolvePeer, retryUpnp,
 } from '../api/client';
 import RemoteLibrary from '../components/RemoteLibrary';
 
@@ -29,6 +29,9 @@ export default function Peers() {
   const [resolvingIds, setResolvingIds] = useState<Set<string>>(new Set());
   const [resolveResults, setResolveResults] = useState<Record<string, { ok: boolean; msg: string }>>({});
 
+  const [upnpRetrying, setUpnpRetrying] = useState(false);
+  const [altPort, setAltPort] = useState('');
+
   const refresh = async () => {
     const [net, k, p] = await Promise.all([getNetworking(), getApiKeys(), getPeers()]);
     setNetworking(net);
@@ -46,6 +49,23 @@ export default function Peers() {
       setNetworking((prev) => prev ? { ...prev, externalUrl: result.externalUrl } : prev);
     } finally {
       setUrlSaving(false);
+    }
+  };
+
+  const handleUpnpRetry = async () => {
+    setUpnpRetrying(true);
+    try {
+      const port = altPort.trim() ? parseInt(altPort.trim(), 10) : undefined;
+      if (port !== undefined && (isNaN(port) || port < 1 || port > 65535)) return;
+      const result = await retryUpnp(port);
+      setNetworking((prev) => prev ? {
+        ...prev,
+        externalUrl: result.externalUrl,
+        upnp: result.upnp,
+      } : prev);
+      if (result.externalUrl) setUrlInput(result.externalUrl);
+    } finally {
+      setUpnpRetrying(false);
     }
   };
 
@@ -155,19 +175,36 @@ export default function Peers() {
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-sm text-gray-400 w-28 shrink-0">UPnP</span>
-                {networking.upnp.active ? (
-                  <span className="text-xs text-green-400 flex items-center gap-1">
-                    <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-                    Active ({networking.upnp.externalIp})
-                  </span>
-                ) : networking.upnp.error ? (
-                  <span className="text-xs text-yellow-400">
-                    Unavailable: {networking.upnp.error}
-                    {' '}<a href="/docs#upnp-troubleshooting" className="underline hover:text-yellow-300">Troubleshoot</a>
-                  </span>
-                ) : (
-                  <span className="text-xs text-gray-500">Not active (manual URL set)</span>
-                )}
+                <div className="flex-1 flex items-center gap-2 flex-wrap">
+                  {networking.upnp.active ? (
+                    <span className="text-xs text-green-400 flex items-center gap-1">
+                      <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                      Active ({networking.upnp.externalIp}:{networking.upnp.externalPort})
+                    </span>
+                  ) : networking.upnp.error ? (
+                    <span className="text-xs text-yellow-400">
+                      Unavailable: {networking.upnp.error}
+                      {' '}<a href="/docs#upnp-troubleshooting" className="underline hover:text-yellow-300">Troubleshoot</a>
+                    </span>
+                  ) : (
+                    <span className="text-xs text-gray-500">Not active (manual URL set)</span>
+                  )}
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      value={altPort}
+                      onChange={(e) => setAltPort(e.target.value.replace(/\D/g, ''))}
+                      placeholder="Port"
+                      className="w-20 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                    <button
+                      onClick={handleUpnpRetry}
+                      disabled={upnpRetrying}
+                      className="text-xs px-2.5 py-1 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors disabled:opacity-50"
+                    >
+                      {upnpRetrying ? 'Retrying...' : altPort.trim() ? 'Try port' : 'Retry UPnP'}
+                    </button>
+                  </div>
+                </div>
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-sm text-gray-400 w-28 shrink-0">External URL</span>

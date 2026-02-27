@@ -27,6 +27,7 @@ vi.mock('../src/config', () => ({
 import {
   startUpnp,
   stopUpnp,
+  retryUpnp,
   getUpnpState,
   getExternalUrl,
   setManualExternalUrl,
@@ -294,5 +295,81 @@ describe('UPnP Service - manual URL and state interaction', () => {
     const state = getUpnpState();
     expect(state.externalUrl).toBe('http://override.com');
     expect(state.active).toBe(false);
+  });
+});
+
+describe('UPnP Service - retryUpnp', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(async () => {
+    await stopUpnp();
+    setManualExternalUrl(null);
+  });
+
+  it('maps an alternate external port to the internal port', async () => {
+    mockPortMapping.mockImplementation((_opts: any, cb: Function) => cb(null));
+    mockExternalIp.mockImplementation((cb: Function) => cb(null, '1.2.3.4'));
+
+    const result = await retryUpnp(3001);
+
+    expect(result.active).toBe(true);
+    expect(result.externalPort).toBe(3001);
+    expect(result.externalUrl).toBe('http://1.2.3.4:3001');
+
+    const mapOpts = mockPortMapping.mock.calls[0][0];
+    expect(mapOpts.public).toBe(3001);
+    expect(mapOpts.private).toBe(3000);
+  });
+
+  it('returns error state when alternate port fails', async () => {
+    mockPortMapping.mockImplementation((_opts: any, cb: Function) => cb(new Error('Port in use')));
+
+    const result = await retryUpnp(8080);
+
+    expect(result.active).toBe(false);
+    expect(result.error).toBe('Port in use');
+  });
+
+  it('cleans up previous alternate port mapping when switching ports', async () => {
+    mockPortMapping.mockImplementation((_opts: any, cb: Function) => cb(null));
+    mockExternalIp.mockImplementation((cb: Function) => cb(null, '1.2.3.4'));
+
+    await retryUpnp(3001);
+    expect(getUpnpState().externalPort).toBe(3001);
+
+    mockPortUnmapping.mockClear();
+    await retryUpnp(3002);
+
+    const unmapPorts = mockPortUnmapping.mock.calls.map((c: any[]) => c[0].public);
+    expect(unmapPorts).toContain(3001);
+    expect(unmapPorts).toContain(3002);
+    expect(getUpnpState().externalPort).toBe(3002);
+  });
+
+  it('stopUpnp unmaps the alternate port', async () => {
+    mockPortMapping.mockImplementation((_opts: any, cb: Function) => cb(null));
+    mockExternalIp.mockImplementation((cb: Function) => cb(null, '1.2.3.4'));
+
+    await retryUpnp(4000);
+
+    mockPortUnmapping.mockClear();
+    await stopUpnp();
+
+    expect(mockPortUnmapping).toHaveBeenCalledTimes(1);
+    expect(mockPortUnmapping.mock.calls[0][0].public).toBe(4000);
+  });
+
+  it('state includes externalPort after successful mapping', async () => {
+    mockPortMapping.mockImplementation((_opts: any, cb: Function) => cb(null));
+    mockExternalIp.mockImplementation((cb: Function) => cb(null, '5.6.7.8'));
+
+    await startUpnp();
+    expect(getUpnpState().externalPort).toBe(3000);
+
+    await retryUpnp(9090);
+    expect(getUpnpState().externalPort).toBe(9090);
+    expect(getUpnpState().externalUrl).toBe('http://5.6.7.8:9090');
   });
 });
