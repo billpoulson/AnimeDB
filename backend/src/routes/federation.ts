@@ -15,7 +15,7 @@ router.get('/library', (_req: Request, res: Response) => {
   const db = getDb();
   const downloads = db.prepare(
     `SELECT id, title, category, season, episode, status, created_at
-     FROM downloads WHERE status = 'completed'
+     FROM downloads WHERE status = 'completed' AND url NOT LIKE 'federation://%'
      ORDER BY created_at DESC`
   ).all();
 

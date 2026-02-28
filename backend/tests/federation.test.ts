@@ -138,6 +138,24 @@ describe('Federation API', () => {
       expect(res.body.items[0]).not.toHaveProperty('file_path');
       expect(res.body.items[0]).not.toHaveProperty('url');
     });
+
+    it('excludes federation-replicated downloads', async () => {
+      const db = getDb();
+      const key = createTestKey(db);
+
+      insertCompletedDownload(db, 'dl-original');
+      db.prepare(
+        `INSERT INTO downloads (id, url, title, category, status, progress)
+         VALUES (?, ?, ?, ?, 'completed', 100)`
+      ).run('dl-replicated', 'federation://peer.example.com/remote-1', 'Replicated', 'movies');
+
+      const res = await request
+        .get('/api/federation/library')
+        .set('Authorization', `Bearer ${key}`);
+
+      expect(res.body.items).toHaveLength(1);
+      expect(res.body.items[0].id).toBe('dl-original');
+    });
   });
 
   describe('GET /api/federation/download/:id/stream', () => {

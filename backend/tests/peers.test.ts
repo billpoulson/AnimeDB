@@ -536,3 +536,304 @@ function waitForDownload(db: ReturnType<typeof getDb>, id: string, timeoutMs: nu
     check();
   });
 }
+
+function waitForAllDownloads(db: ReturnType<typeof getDb>, federationUrlPrefix: string, timeoutMs: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const start = Date.now();
+    const check = () => {
+      const pending = db.prepare(
+        "SELECT COUNT(*) as cnt FROM downloads WHERE url LIKE ? AND status IN ('queued','downloading')"
+      ).get(`${federationUrlPrefix}%`) as any;
+      if (pending.cnt === 0) return resolve();
+      if (Date.now() - start > timeoutMs) return reject(new Error('Timeout waiting for replicate'));
+      setTimeout(check, 100);
+    };
+    check();
+  });
+}
+
+describe('Peers API - replicate', () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'animedb-replicate-test-'));
+    initDb(':memory:');
+  });
+
+  afterEach(() => {
+    closeDb();
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it('returns 404 for non-existent peer', async () => {
+    const request = supertest(createApp());
+    const res = await request.post('/api/peers/no-such-peer/replicate');
+    expect(res.status).toBe(404);
+    expect(res.body.error).toContain('Peer not found');
+  });
+
+  it('rejects invalid libraryId', async () => {
+    const app = createApp();
+    const server = app.listen(0);
+    const addr = server.address() as any;
+    const selfUrl = `http://127.0.0.1:${addr.port}`;
+    const selfRequest = supertest(app);
+
+    try {
+      const keyRes = await selfRequest.post('/api/keys').send({ label: 'rep-lib-test' });
+      const apiKey = keyRes.body.key;
+
+      const addRes = await selfRequest.post('/api/peers').send({
+        name: 'Self', url: selfUrl, api_key: apiKey,
+      });
+
+      const res = await selfRequest.post(`/api/peers/${addRes.body.id}/replicate`).send({
+        libraryId: 'nonexistent',
+      });
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe('Library not found');
+    } finally {
+      server.close();
+    }
+  });
+
+  it('returns zero counts for empty remote library', async () => {
+    const app = createApp();
+    const server = app.listen(0);
+    const addr = server.address() as any;
+    const selfUrl = `http://127.0.0.1:${addr.port}`;
+    const selfRequest = supertest(app);
+
+    try {
+      const keyRes = await selfRequest.post('/api/keys').send({ label: 'rep-empty' });
+      const apiKey = keyRes.body.key;
+
+      const addRes = await selfRequest.post('/api/peers').send({
+        name: 'Self', url: selfUrl, api_key: apiKey,
+      });
+
+      const res = await selfRequest.post(`/api/peers/${addRes.body.id}/replicate`);
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ queued: 0, skipped: 0, total: 0 });
+    } finally {
+      server.close();
+    }
+  });
+
+  it('queues items and skips already-pulled ones', async () => {
+    const { config } = await import('../src/config');
+    const origDownloadPath = config.downloadPath;
+    config.downloadPath = path.join(tmpDir, 'downloads');
+    fs.mkdirSync(config.downloadPath, { recursive: true });
+
+    const app = createApp();
+    const server = app.listen(0);
+    const addr = server.address() as any;
+    const selfUrl = `http://127.0.0.1:${addr.port}`;
+    const selfRequest = supertest(app);
+
+    try {
+      const keyRes = await selfRequest.post('/api/keys').send({ label: 'rep-skip' });
+      const apiKey = keyRes.body.key;
+
+      const db = getDb();
+      const f1 = path.join(tmpDir, 'a.mkv');
+      const f2 = path.join(tmpDir, 'b.mkv');
+      fs.writeFileSync(f1, 'aaa');
+      fs.writeFileSync(f2, 'bbb');
+
+      db.prepare(
+        `INSERT INTO downloads (id, url, title, category, status, progress, file_path)
+         VALUES (?, ?, ?, ?, 'completed', 100, ?)`
+      ).run('dl-a', 'https://youtube.com/watch?v=a', 'Video A', 'movies', f1);
+      db.prepare(
+        `INSERT INTO downloads (id, url, title, category, status, progress, file_path)
+         VALUES (?, ?, ?, ?, 'completed', 100, ?)`
+      ).run('dl-b', 'https://youtube.com/watch?v=b', 'Video B', 'tv', f2);
+
+      const addRes = await selfRequest.post('/api/peers').send({
+        name: 'Self', url: selfUrl, api_key: apiKey,
+      });
+      const peerId = addRes.body.id;
+
+      // Pre-pull dl-a so it should be skipped
+      db.prepare(
+        `INSERT INTO downloads (id, url, title, category, status, progress)
+         VALUES (?, ?, ?, ?, 'completed', 100)`
+      ).run(crypto.randomUUID(), `federation://${selfUrl}/dl-a`, 'Video A', 'movies');
+
+      const res = await selfRequest.post(`/api/peers/${peerId}/replicate`);
+      expect(res.status).toBe(200);
+      expect(res.body.total).toBe(2);
+      expect(res.body.skipped).toBe(1);
+      expect(res.body.queued).toBe(1);
+    } finally {
+      config.downloadPath = origDownloadPath;
+      server.close();
+    }
+  });
+
+  it('downloads all items and completes them', async () => {
+    const { config } = await import('../src/config');
+    const origDownloadPath = config.downloadPath;
+    config.downloadPath = path.join(tmpDir, 'downloads');
+    fs.mkdirSync(config.downloadPath, { recursive: true });
+
+    const app = createApp();
+    const server = app.listen(0);
+    const addr = server.address() as any;
+    const selfUrl = `http://127.0.0.1:${addr.port}`;
+    const selfRequest = supertest(app);
+
+    try {
+      const keyRes = await selfRequest.post('/api/keys').send({ label: 'rep-full' });
+      const apiKey = keyRes.body.key;
+
+      const db = getDb();
+      const f1 = path.join(tmpDir, 'one.mkv');
+      const f2 = path.join(tmpDir, 'two.mkv');
+      fs.writeFileSync(f1, 'content-one');
+      fs.writeFileSync(f2, 'content-two');
+
+      db.prepare(
+        `INSERT INTO downloads (id, url, title, category, status, progress, file_path)
+         VALUES (?, ?, ?, ?, 'completed', 100, ?)`
+      ).run('dl-1', 'https://youtube.com/watch?v=1', 'First', 'movies', f1);
+      db.prepare(
+        `INSERT INTO downloads (id, url, title, category, status, progress, file_path)
+         VALUES (?, ?, ?, ?, 'completed', 100, ?)`
+      ).run('dl-2', 'https://youtube.com/watch?v=2', 'Second', 'tv', f2);
+
+      const addRes = await selfRequest.post('/api/peers').send({
+        name: 'Self', url: selfUrl, api_key: apiKey,
+      });
+      const peerId = addRes.body.id;
+
+      const res = await selfRequest.post(`/api/peers/${peerId}/replicate`);
+      expect(res.status).toBe(200);
+      expect(res.body.queued).toBe(2);
+
+      await waitForAllDownloads(db, `federation://${selfUrl}/`, 15000);
+
+      const replicated = db.prepare(
+        "SELECT * FROM downloads WHERE url LIKE ? AND status = 'completed'"
+      ).all(`federation://${selfUrl}/%`) as any[];
+      expect(replicated).toHaveLength(2);
+
+      for (const dl of replicated) {
+        expect(dl.progress).toBe(100);
+        expect(dl.file_path).toBeTruthy();
+        expect(fs.existsSync(dl.file_path)).toBe(true);
+      }
+    } finally {
+      config.downloadPath = origDownloadPath;
+      server.close();
+    }
+  }, 20000);
+
+  it('replicate with libraryId auto-moves files', async () => {
+    const { config } = await import('../src/config');
+    const origDownloadPath = config.downloadPath;
+    const origMediaPath = config.mediaPath;
+    config.downloadPath = path.join(tmpDir, 'downloads');
+    config.mediaPath = path.join(tmpDir, 'media');
+    fs.mkdirSync(config.downloadPath, { recursive: true });
+    fs.mkdirSync(config.mediaPath, { recursive: true });
+
+    const app = createApp();
+    const server = app.listen(0);
+    const addr = server.address() as any;
+    const selfUrl = `http://127.0.0.1:${addr.port}`;
+    const selfRequest = supertest(app);
+
+    try {
+      const keyRes = await selfRequest.post('/api/keys').send({ label: 'rep-move' });
+      const apiKey = keyRes.body.key;
+
+      const db = getDb();
+      const f1 = path.join(tmpDir, 'movie.mkv');
+      fs.writeFileSync(f1, 'movie-data');
+
+      db.prepare(
+        `INSERT INTO downloads (id, url, title, category, status, progress, file_path)
+         VALUES (?, ?, ?, ?, 'completed', 100, ?)`
+      ).run('dl-mov', 'https://youtube.com/watch?v=m', 'My Movie', 'movies', f1);
+
+      const libRes = await selfRequest.post('/api/libraries').send({
+        name: 'Movies Lib',
+        path: path.join(tmpDir, 'media', 'movies'),
+        type: 'movies',
+      });
+      expect(libRes.status).toBe(201);
+      const libraryId = libRes.body.id;
+
+      const addRes = await selfRequest.post('/api/peers').send({
+        name: 'Self', url: selfUrl, api_key: apiKey,
+      });
+      const peerId = addRes.body.id;
+
+      const res = await selfRequest.post(`/api/peers/${peerId}/replicate`).send({ libraryId });
+      expect(res.status).toBe(200);
+      expect(res.body.queued).toBe(1);
+
+      await waitForAllDownloads(db, `federation://${selfUrl}/`, 15000);
+
+      const replicated = db.prepare(
+        "SELECT * FROM downloads WHERE url LIKE ? AND status = 'completed'"
+      ).all(`federation://${selfUrl}/%`) as any[];
+      expect(replicated).toHaveLength(1);
+      expect(replicated[0].moved_to_library).toBe(1);
+      expect(replicated[0].library_id).toBe(libraryId);
+      expect(fs.existsSync(replicated[0].file_path)).toBe(true);
+    } finally {
+      config.downloadPath = origDownloadPath;
+      config.mediaPath = origMediaPath;
+      server.close();
+    }
+  }, 20000);
+
+  it('second replicate skips already-replicated items', async () => {
+    const { config } = await import('../src/config');
+    const origDownloadPath = config.downloadPath;
+    config.downloadPath = path.join(tmpDir, 'downloads');
+    fs.mkdirSync(config.downloadPath, { recursive: true });
+
+    const app = createApp();
+    const server = app.listen(0);
+    const addr = server.address() as any;
+    const selfUrl = `http://127.0.0.1:${addr.port}`;
+    const selfRequest = supertest(app);
+
+    try {
+      const keyRes = await selfRequest.post('/api/keys').send({ label: 'rep-idem' });
+      const apiKey = keyRes.body.key;
+
+      const db = getDb();
+      const f1 = path.join(tmpDir, 'vid.mkv');
+      fs.writeFileSync(f1, 'video');
+
+      db.prepare(
+        `INSERT INTO downloads (id, url, title, category, status, progress, file_path)
+         VALUES (?, ?, ?, ?, 'completed', 100, ?)`
+      ).run('dl-v', 'https://youtube.com/watch?v=v', 'Video', 'other', f1);
+
+      const addRes = await selfRequest.post('/api/peers').send({
+        name: 'Self', url: selfUrl, api_key: apiKey,
+      });
+      const peerId = addRes.body.id;
+
+      const res1 = await selfRequest.post(`/api/peers/${peerId}/replicate`);
+      expect(res1.body.queued).toBe(1);
+
+      await waitForAllDownloads(db, `federation://${selfUrl}/`, 15000);
+
+      const res2 = await selfRequest.post(`/api/peers/${peerId}/replicate`);
+      expect(res2.body.queued).toBe(0);
+      expect(res2.body.skipped).toBe(1);
+      expect(res2.body.total).toBe(1);
+    } finally {
+      config.downloadPath = origDownloadPath;
+      server.close();
+    }
+  }, 20000);
+});

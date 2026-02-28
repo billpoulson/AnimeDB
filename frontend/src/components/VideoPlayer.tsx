@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 
 interface Props {
   downloadId: string;
@@ -9,6 +9,12 @@ interface Props {
 export default function VideoPlayer({ downloadId, title, onClose }: Props) {
   const backdropRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  const streamUrl = useMemo(() => {
+    const token = localStorage.getItem('animedb_token');
+    const base = `/api/downloads/${downloadId}/stream`;
+    return token ? `${base}?token=${encodeURIComponent(token)}` : base;
+  }, [downloadId]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -47,7 +53,7 @@ export default function VideoPlayer({ downloadId, title, onClose }: Props) {
         </div>
         <video
           ref={videoRef}
-          src={`/api/downloads/${downloadId}/stream`}
+          src={streamUrl}
           controls
           autoPlay
           className="w-full rounded-lg bg-black shadow-2xl"

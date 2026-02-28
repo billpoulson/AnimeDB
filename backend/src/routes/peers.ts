@@ -466,9 +466,11 @@ router.post('/:id/replicate', async (req: Request, res: Response) => {
 
           log.info(`Replicated: ${remoteId} -> ${item.id}`);
         } catch (err: any) {
-          db.prepare(
-            "UPDATE downloads SET status = 'failed', error = ?, updated_at = datetime('now') WHERE id = ?"
-          ).run(err.message || 'Replicate pull failed', item.id);
+          try {
+            db.prepare(
+              "UPDATE downloads SET status = 'failed', error = ?, updated_at = datetime('now') WHERE id = ?"
+            ).run(err.message || 'Replicate pull failed', item.id);
+          } catch { /* DB may be closed during shutdown */ }
           log.error(`Replicate failed for ${remoteId}: ${err.message}`);
         }
       }

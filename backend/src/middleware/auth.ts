@@ -14,11 +14,13 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
   }
 
   const header = req.headers.authorization;
-  if (!header || !header.startsWith('Bearer ')) {
+  const queryToken = typeof req.query.token === 'string' ? req.query.token : null;
+
+  if (!header?.startsWith('Bearer ') && !queryToken) {
     return res.status(401).json({ error: 'Authentication required' });
   }
 
-  const token = header.slice(7);
+  const token = queryToken || header!.slice(7);
   const storedToken = db.prepare("SELECT value FROM settings WHERE key = 'session_token'").get() as { value: string } | undefined;
 
   if (!storedToken || storedToken.value !== token) {
