@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { getPlexSettings, savePlexSettings } from '../services/settings';
 import { testPlexConnection } from '../services/plexClient';
+import { createPlexPin, pollPlexPin, getPlexServers } from '../services/plexAuth';
 
 const router = Router();
 
@@ -57,6 +58,42 @@ router.post('/plex/test', async (req: Request, res: Response) => {
     res.json({ connected, error: connected ? null : 'Could not connect to Plex server' });
   } catch (err: any) {
     res.json({ connected: false, error: err.message });
+  }
+});
+
+router.post('/plex/pin', async (_req: Request, res: Response) => {
+  try {
+    const { authUrl, code, pinId } = await createPlexPin();
+    res.json({ authUrl, code, pinId });
+  } catch (err: any) {
+    res.status(500).json({ error: err.response?.data ?? err.message });
+  }
+});
+
+router.get('/plex/pin/:pinId', async (req: Request, res: Response) => {
+  const pinId = parseInt(req.params.pinId, 10);
+  const code = req.query.code as string;
+  if (!pinId || !code) {
+    return res.status(400).json({ token: null, error: 'pinId and code are required' });
+  }
+  try {
+    const { token, expiresAt } = await pollPlexPin(pinId, code);
+    res.json({ token, expiresAt });
+  } catch (err: any) {
+    res.status(500).json({ token: null, error: err.response?.data ?? err.message });
+  }
+});
+
+router.get('/plex/servers', async (req: Request, res: Response) => {
+  const token = req.query.token as string;
+  if (!token) {
+    return res.status(400).json({ error: 'token is required' });
+  }
+  try {
+    const servers = await getPlexServers(token);
+    res.json({ servers });
+  } catch (err: any) {
+    res.status(500).json({ error: err.response?.data ?? err.message });
   }
 });
 

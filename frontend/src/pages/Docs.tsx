@@ -100,7 +100,8 @@ export default function Docs() {
       {/* ── Plex ── */}
       <section id="plex" className="mb-10">
         <h2 className="text-xl font-semibold border-b border-gray-800 pb-2">Plex Integration</h2>
-        <p>Plex integration is optional. To enable it, set these environment variables:</p>
+        <p>Plex integration is optional. To enable it, go to <strong>Settings</strong> and click <strong>Link with Plex</strong>. You will be redirected to Plex to authorize AnimeDB; your token and server URL are then saved automatically.</p>
+        <p className="mt-2">Alternatively, you can set these environment variables manually:</p>
         <div className="not-prose overflow-x-auto">
           <table className="w-full text-sm border border-gray-800 rounded-lg overflow-hidden">
             <thead><tr className="bg-gray-900 text-gray-400 text-left"><th className="px-3 py-2">Variable</th><th className="px-3 py-2">Description</th></tr></thead>

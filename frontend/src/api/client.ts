@@ -379,3 +379,34 @@ export async function testPlexConnection(url: string, token: string): Promise<Pl
   const res = await api.post('/settings/plex/test', { url, token });
   return res.data;
 }
+
+export interface PlexPinResult {
+  authUrl: string;
+  code: string;
+  pinId: number;
+}
+
+export interface PlexPinPollResult {
+  token: string | null;
+  expiresAt?: string;
+}
+
+export interface PlexServer {
+  name: string;
+  uri: string;
+}
+
+export async function createPlexPin(): Promise<PlexPinResult> {
+  const res = await api.post('/settings/plex/pin');
+  return res.data;
+}
+
+export async function pollPlexPin(pinId: number, code: string): Promise<PlexPinPollResult> {
+  const res = await api.get(`/settings/plex/pin/${pinId}`, { params: { code } });
+  return res.data;
+}
+
+export async function getPlexServers(token: string): Promise<PlexServer[]> {
+  const res = await api.get('/settings/plex/servers', { params: { token } });
+  return res.data.servers ?? [];
+}

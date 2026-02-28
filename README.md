@@ -17,7 +17,7 @@ irm https://raw.githubusercontent.com/billpoulson/AnimeDB/main/install.ps1 | iex
 If the CDN is serving a stale version, use the versioned script instead:
 
 ```powershell
-irm https://raw.githubusercontent.com/billpoulson/AnimeDB/main/install_v19.ps1 | iex
+irm https://raw.githubusercontent.com/billpoulson/AnimeDB/main/install_v20.ps1 | iex
 ```
 
 **Bash (Linux / macOS):**
@@ -51,9 +51,12 @@ cp .env.example .env
 | `PLEX_TOKEN` | No | Plex authentication token |
 | `PLEX_SECTION_MOVIES` | No | Plex library section ID for movies (default: `1`) |
 | `PLEX_SECTION_TV` | No | Plex library section ID for TV shows (default: `2`) |
+| `PLEX_CLIENT_ID` | No | Stable client ID for Plex OAuth (default: auto-generated) |
 | `EXTERNAL_URL` | No | Override the auto-discovered external URL for federation |
 
 Plex integration is entirely optional. If you leave `PLEX_URL` and `PLEX_TOKEN` empty, everything else works normally.
+
+**Preferred setup:** Use **Settings → Link with Plex** in the web UI. This opens a Plex authorization page where you sign in and approve AnimeDB; your token and server URL are then saved automatically. No manual token lookup is required.
 
 ### Networking
 

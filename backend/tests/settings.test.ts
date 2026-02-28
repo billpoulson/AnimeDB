@@ -26,6 +26,12 @@ vi.mock('../src/services/plexClient', () => ({
   triggerPlexScan: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock('../src/services/plexAuth', () => ({
+  createPlexPin: vi.fn().mockResolvedValue({ authUrl: 'https://app.plex.tv/auth#?code=TEST', code: 'TEST', pinId: 123 }),
+  pollPlexPin: vi.fn().mockResolvedValue({ token: null }),
+  getPlexServers: vi.fn().mockResolvedValue([{ name: 'My Plex', uri: 'http://192.168.1.50:32400' }]),
+}));
+
 describe('Settings API', () => {
   let request: ReturnType<typeof supertest>;
 
@@ -159,6 +165,81 @@ describe('Settings API', () => {
 
       expect(res.status).toBe(200);
       expect(testPlexConnection).toHaveBeenCalledWith('http://plex:32400', 'saved-secret');
+    });
+  });
+
+  describe('POST /api/settings/plex/pin', () => {
+    it('returns authUrl, code, pinId', async () => {
+      const res = await request.post('/api/settings/plex/pin');
+      expect(res.status).toBe(200);
+      expect(res.body.authUrl).toContain('plex.tv');
+      expect(res.body.code).toBe('TEST');
+      expect(res.body.pinId).toBe(123);
+    });
+
+    it('returns 500 when createPlexPin throws', async () => {
+      const { createPlexPin } = await import('../src/services/plexAuth');
+      vi.mocked(createPlexPin).mockRejectedValueOnce(new Error('Plex unavailable'));
+
+      const res = await request.post('/api/settings/plex/pin');
+      expect(res.status).toBe(500);
+      expect(res.body.error).toBeDefined();
+    });
+  });
+
+  describe('GET /api/settings/plex/pin/:pinId', () => {
+    it('returns token when code provided', async () => {
+      const { pollPlexPin } = await import('../src/services/plexAuth');
+      vi.mocked(pollPlexPin).mockResolvedValueOnce({ token: 'auth-token-xyz', expiresAt: '2025-01-01' });
+
+      const res = await request.get('/api/settings/plex/pin/123').query({ code: 'TEST' });
+      expect(res.status).toBe(200);
+      expect(res.body.token).toBe('auth-token-xyz');
+      expect(pollPlexPin).toHaveBeenCalledWith(123, 'TEST');
+    });
+
+    it('returns 400 when code missing', async () => {
+      const res = await request.get('/api/settings/plex/pin/123');
+      expect(res.status).toBe(400);
+      expect(res.body.token).toBeNull();
+    });
+
+    it('returns 400 when pinId invalid', async () => {
+      const res = await request.get('/api/settings/plex/pin/abc').query({ code: 'TEST' });
+      expect(res.status).toBe(400);
+      expect(res.body.token).toBeNull();
+    });
+
+    it('returns 500 when pollPlexPin throws', async () => {
+      const { pollPlexPin } = await import('../src/services/plexAuth');
+      vi.mocked(pollPlexPin).mockRejectedValueOnce(new Error('Plex error'));
+
+      const res = await request.get('/api/settings/plex/pin/123').query({ code: 'TEST' });
+      expect(res.status).toBe(500);
+      expect(res.body.token).toBeNull();
+      expect(res.body.error).toBeDefined();
+    });
+  });
+
+  describe('GET /api/settings/plex/servers', () => {
+    it('returns server list when token provided', async () => {
+      const res = await request.get('/api/settings/plex/servers').query({ token: 'my-token' });
+      expect(res.status).toBe(200);
+      expect(res.body.servers).toEqual([{ name: 'My Plex', uri: 'http://192.168.1.50:32400' }]);
+    });
+
+    it('returns 400 when token missing', async () => {
+      const res = await request.get('/api/settings/plex/servers');
+      expect(res.status).toBe(400);
+    });
+
+    it('returns 500 when getPlexServers throws', async () => {
+      const { getPlexServers } = await import('../src/services/plexAuth');
+      vi.mocked(getPlexServers).mockRejectedValueOnce(new Error('Invalid token'));
+
+      const res = await request.get('/api/settings/plex/servers').query({ token: 'bad' });
+      expect(res.status).toBe(500);
+      expect(res.body.error).toBeDefined();
     });
   });
 
