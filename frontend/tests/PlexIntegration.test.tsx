@@ -29,6 +29,7 @@ describe('PlexIntegration', () => {
       currentSha: 'abc123',
       remoteSha: 'abc123',
       remoteMessage: '',
+      remoteDate: '',
       updateAvailable: false,
       updateInProgress: false,
     });
