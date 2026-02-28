@@ -6,6 +6,7 @@ import fs from 'fs';
 import axios from 'axios';
 import { config } from '../config';
 import { createLogger } from '../services/logger';
+import { ROLLBACK_MARKER, writeRollbackMarker } from '../services/rollback';
 
 const log = createLogger('update');
 const execAsync = promisify(exec);
@@ -95,6 +96,8 @@ router.post('/update', async (_req: Request, res: Response) => {
         const appBackendDist = path.resolve(__dirname, '..');
         const appBackendRoot = path.resolve(__dirname, '../..');
         const appFrontendDist = path.resolve(__dirname, '../../../frontend/dist');
+        const backendBak = appBackendDist + '.bak';
+        const frontendBak = appFrontendDist + '.bak';
 
         log.info('Updating production node_modules...');
         fs.copyFileSync(
@@ -107,11 +110,17 @@ router.post('/update', async (_req: Request, res: Response) => {
         );
         await execAsync('npm ci --omit=dev', { cwd: appBackendRoot, timeout: 300000 });
 
-        log.info('replacing backend dist...');
-        await execAsync(`rm -rf "${appBackendDist}" && cp -r "${builtBackendDist}" "${appBackendDist}"`);
+        log.info('backing up current dist dirs...');
+        if (fs.existsSync(backendBak)) fs.rmSync(backendBak, { recursive: true, force: true });
+        if (fs.existsSync(frontendBak)) fs.rmSync(frontendBak, { recursive: true, force: true });
+        fs.renameSync(appBackendDist, backendBak);
+        if (fs.existsSync(appFrontendDist)) {
+          fs.renameSync(appFrontendDist, frontendBak);
+        }
 
-        log.info('replacing frontend dist...');
-        await execAsync(`rm -rf "${appFrontendDist}" && cp -r "${builtFrontendDist}" "${appFrontendDist}"`);
+        log.info('copying new build artifacts...');
+        fs.cpSync(builtBackendDist, appBackendDist, { recursive: true });
+        fs.cpSync(builtFrontendDist, appFrontendDist, { recursive: true });
 
         const latestShaRes = await axios.get(
           `https://api.github.com/repos/${config.githubRepo}/commits/main`,
@@ -119,7 +128,9 @@ router.post('/update', async (_req: Request, res: Response) => {
         );
         fs.writeFileSync(path.resolve(__dirname, '../../../BUILD_SHA'), latestShaRes.data.sha);
 
-        log.info('complete. Restarting...');
+        writeRollbackMarker(ROLLBACK_MARKER, backendBak, frontendBak);
+
+        log.info('update applied. Restarting...');
         fs.rmSync(tmpDir, { recursive: true, force: true });
 
         process.exit(0);

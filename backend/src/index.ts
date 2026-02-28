@@ -7,8 +7,14 @@ import { createApp } from './app';
 import { startUpnp, stopUpnp, onRenew } from './services/upnp';
 import { announceToAllPeers } from './services/announce';
 import { createLogger } from './services/logger';
+import { checkRollback, cleanupAfterSuccessfulUpdate } from './services/rollback';
 
 const log = createLogger('app');
+
+const rollbackResult = checkRollback();
+if (rollbackResult === 'rolled_back') {
+  process.exit(1);
+}
 
 const dbDir = path.dirname(config.dbPath);
 fs.mkdirSync(dbDir, { recursive: true });
@@ -26,6 +32,8 @@ onRenew(() => {
 const app = createApp();
 app.listen(config.port, () => {
   log.info(`AnimeDB server running on port ${config.port}`);
+  cleanupAfterSuccessfulUpdate();
+
   startUpnp()
     .then(() => announceToAllPeers())
     .catch((err) => {
