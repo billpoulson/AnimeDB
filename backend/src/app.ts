@@ -10,8 +10,10 @@ import peersRouter from './routes/peers';
 import apiKeysRouter from './routes/apiKeys';
 import networkingRouter from './routes/networking';
 import systemRouter from './routes/system';
+import settingsRouter from './routes/settings';
 import { authMiddleware } from './middleware/auth';
 import { testPlexConnection } from './services/plexClient';
+import { getPlexSettings } from './services/settings';
 import { config } from './config';
 
 export function createApp() {
@@ -31,13 +33,15 @@ export function createApp() {
   app.use('/api/keys', apiKeysRouter);
   app.use('/api/networking', networkingRouter);
   app.use('/api/system', systemRouter);
+  app.use('/api/settings', settingsRouter);
 
   app.get('/api/config', async (_req, res) => {
+    const plex = getPlexSettings();
     const plexConnected = await testPlexConnection();
     res.json({
       outputFormat: config.outputFormat,
       plexConnected,
-      plexUrl: config.plex.url || null,
+      plexUrl: plex.url || null,
     });
   });
 

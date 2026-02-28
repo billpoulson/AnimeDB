@@ -4,6 +4,8 @@ import {
   getLibraries, createLibrary, updateLibrary, deleteLibrary, scanForFolders, getConfig,
   authChangePassword, getAuthStatus,
   checkForUpdate, applyUpdate, type UpdateCheckResult,
+  getPlexSettings, savePlexSettings, testPlexConnection,
+  type PlexSettingsResponse,
 } from '../api/client';
 
 const TYPE_LABELS: Record<string, string> = { movies: 'Movies', tv: 'TV', other: 'Other' };
@@ -219,9 +221,209 @@ export default function Settings() {
         </section>
       )}
 
+      <PlexIntegration onConnectionChange={refresh} />
       <UpdateCheck />
       <ChangePassword />
     </div>
+  );
+}
+
+function PlexIntegration({ onConnectionChange }: { onConnectionChange: () => void }) {
+  const [settings, setSettings] = useState<PlexSettingsResponse | null>(null);
+  const [url, setUrl] = useState('');
+  const [token, setToken] = useState('');
+  const [sectionMovies, setSectionMovies] = useState(1);
+  const [sectionTv, setSectionTv] = useState(2);
+  const [showToken, setShowToken] = useState(false);
+  const [tokenEdited, setTokenEdited] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ connected: boolean; error: string | null } | null>(null);
+  const [saveMsg, setSaveMsg] = useState('');
+  const [saveErr, setSaveErr] = useState('');
+
+  const load = async () => {
+    const s = await getPlexSettings();
+    setSettings(s);
+    setUrl(s.url);
+    setToken(s.token);
+    setSectionMovies(s.sectionMovies);
+    setSectionTv(s.sectionTv);
+    setTokenEdited(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const handleTest = async () => {
+    const testToken = tokenEdited ? token : '';
+    if (!url || (!testToken && !settings?.hasToken)) {
+      setTestResult({ connected: false, error: 'URL and token are required' });
+      return;
+    }
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const result = await testPlexConnection(url, tokenEdited ? token : '__use_saved__');
+      setTestResult(result);
+    } catch (err: any) {
+      setTestResult({ connected: false, error: err.response?.data?.error || 'Test failed' });
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    setSaveMsg('');
+    setSaveErr('');
+    try {
+      const update: Record<string, any> = { url, sectionMovies, sectionTv };
+      if (tokenEdited) update.token = token;
+      const saved = await savePlexSettings(update);
+      setSettings(saved);
+      setToken(saved.token);
+      setTokenEdited(false);
+      setSaveMsg('Plex settings saved');
+      setTestResult(null);
+      onConnectionChange();
+    } catch (err: any) {
+      setSaveErr(err.response?.data?.error || 'Failed to save');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    setSaving(true);
+    setSaveMsg('');
+    setSaveErr('');
+    try {
+      const saved = await savePlexSettings({ url: '', token: '', sectionMovies: 1, sectionTv: 2 });
+      setSettings(saved);
+      setUrl('');
+      setToken('');
+      setSectionMovies(1);
+      setSectionTv(2);
+      setTokenEdited(false);
+      setTestResult(null);
+      setSaveMsg('Plex integration removed');
+      onConnectionChange();
+    } catch (err: any) {
+      setSaveErr(err.response?.data?.error || 'Failed to save');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const configured = settings?.url && settings?.hasToken;
+
+  return (
+    <section>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <h2 className="text-lg font-semibold">Plex Integration</h2>
+          {settings && (
+            <span className={`inline-flex items-center gap-1 text-xs ${configured ? 'text-green-400' : 'text-gray-500'}`}>
+              <span className={`h-1.5 w-1.5 rounded-full ${configured ? 'bg-green-400' : 'bg-gray-600'}`} />
+              {configured ? 'Connected' : 'Not configured'}
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="sm:col-span-2">
+            <label className="block text-xs text-gray-500 mb-0.5">Plex Server URL</label>
+            <input
+              value={url}
+              onChange={(e) => { setUrl(e.target.value); setTestResult(null); setSaveMsg(''); }}
+              placeholder="http://192.168.1.50:32400"
+              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="block text-xs text-gray-500 mb-0.5">Plex Token</label>
+            <div className="relative">
+              <input
+                type={showToken ? 'text' : 'password'}
+                value={token}
+                onChange={(e) => { setToken(e.target.value); setTokenEdited(true); setTestResult(null); setSaveMsg(''); }}
+                placeholder={settings?.hasToken ? 'Token saved (enter new value to change)' : 'Enter your Plex token'}
+                className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 pr-16 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+              <button
+                type="button"
+                onClick={() => setShowToken(!showToken)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-500 hover:text-gray-300 transition-colors"
+              >
+                {showToken ? 'Hide' : 'Show'}
+              </button>
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-0.5">Movies Section ID</label>
+            <input
+              type="number"
+              min="1"
+              value={sectionMovies}
+              onChange={(e) => { setSectionMovies(parseInt(e.target.value, 10) || 1); setSaveMsg(''); }}
+              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-0.5">TV Section ID</label>
+            <input
+              type="number"
+              min="1"
+              value={sectionTv}
+              onChange={(e) => { setSectionTv(parseInt(e.target.value, 10) || 2); setSaveMsg(''); }}
+              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+
+        {testResult && (
+          <p className={`text-xs ${testResult.connected ? 'text-green-400' : 'text-red-400'}`}>
+            {testResult.connected ? 'Connection successful' : testResult.error || 'Connection failed'}
+          </p>
+        )}
+        {saveMsg && <p className="text-xs text-green-400">{saveMsg}</p>}
+        {saveErr && <p className="text-xs text-red-400">{saveErr}</p>}
+
+        <div className="flex gap-2">
+          <button
+            onClick={handleTest}
+            disabled={testing || !url}
+            className="text-sm px-3 py-1.5 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors disabled:opacity-50 inline-flex items-center gap-1.5"
+          >
+            {testing && (
+              <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            )}
+            {testing ? 'Testing...' : 'Test Connection'}
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="text-sm px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50"
+          >
+            {saving ? 'Saving...' : 'Save'}
+          </button>
+          {configured && (
+            <button
+              onClick={handleDisconnect}
+              disabled={saving}
+              className="text-sm px-3 py-1.5 rounded bg-gray-700 hover:bg-red-700 text-gray-300 hover:text-white transition-colors disabled:opacity-50 ml-auto"
+            >
+              Disconnect
+            </button>
+          )}
+        </div>
+      </div>
+    </section>
   );
 }
 

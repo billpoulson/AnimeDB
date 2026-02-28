@@ -342,3 +342,40 @@ export async function applyUpdate(): Promise<{ status: string; message: string }
   const res = await api.post('/system/update');
   return res.data;
 }
+
+// Plex Settings
+
+export interface PlexSettingsResponse {
+  url: string;
+  token: string;
+  sectionMovies: number;
+  sectionTv: number;
+  hasToken: boolean;
+}
+
+export interface PlexSettingsUpdate {
+  url?: string;
+  token?: string;
+  sectionMovies?: number;
+  sectionTv?: number;
+}
+
+export interface PlexTestResult {
+  connected: boolean;
+  error: string | null;
+}
+
+export async function getPlexSettings(): Promise<PlexSettingsResponse> {
+  const res = await api.get('/settings/plex');
+  return res.data;
+}
+
+export async function savePlexSettings(data: PlexSettingsUpdate): Promise<PlexSettingsResponse> {
+  const res = await api.put('/settings/plex', data);
+  return res.data;
+}
+
+export async function testPlexConnection(url: string, token: string): Promise<PlexTestResult> {
+  const res = await api.post('/settings/plex/test', { url, token });
+  return res.data;
+}

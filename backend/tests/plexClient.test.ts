@@ -4,6 +4,15 @@ import { triggerPlexScan, testPlexConnection } from '../src/services/plexClient'
 
 vi.mock('axios');
 
+vi.mock('../src/services/settings', () => ({
+  getPlexSettings: vi.fn(() => ({
+    url: 'http://plex:32400',
+    token: 'test-token',
+    sectionMovies: 1,
+    sectionTv: 2,
+  })),
+}));
+
 vi.mock('../src/config', () => ({
   config: {
     authDisabled: true,
@@ -76,5 +85,17 @@ describe('testPlexConnection', () => {
   it('returns false on network error', async () => {
     vi.mocked(axios.get).mockRejectedValue(new Error('ECONNREFUSED'));
     expect(await testPlexConnection()).toBe(false);
+  });
+
+  it('uses explicit url and token when provided', async () => {
+    vi.mocked(axios.get).mockResolvedValue({ status: 200 });
+    await testPlexConnection('http://other:32400', 'other-token');
+
+    expect(axios.get).toHaveBeenCalledWith(
+      'http://other:32400/identity',
+      expect.objectContaining({
+        headers: { 'X-Plex-Token': 'other-token' },
+      })
+    );
   });
 });
