@@ -71,8 +71,8 @@ router.post('/plex/pin', async (_req: Request, res: Response) => {
 });
 
 router.get('/plex/pin/:pinId', async (req: Request, res: Response) => {
-  const pinId = parseInt(req.params.pinId, 10);
-  const code = req.query.code as string;
+  const pinId = parseInt(String(req.params.pinId ?? ''), 10);
+  const code = typeof req.query.code === 'string' ? req.query.code : '';
   if (!pinId || !code) {
     return res.status(400).json({ token: null, error: 'pinId and code are required' });
   }
@@ -85,7 +85,7 @@ router.get('/plex/pin/:pinId', async (req: Request, res: Response) => {
 });
 
 router.get('/plex/servers', async (req: Request, res: Response) => {
-  const token = req.query.token as string;
+  const token = typeof req.query.token === 'string' ? req.query.token : '';
   if (!token) {
     return res.status(400).json({ error: 'token is required' });
   }
