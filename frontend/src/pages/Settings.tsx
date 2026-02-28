@@ -511,13 +511,13 @@ function PlexIntegration({ onConnectionChange }: { onConnectionChange: () => voi
 
         {(linkStep === 'idle' || configured) && (
           <>
-            {!configured && linkStep === 'idle' && (
-              <div className="flex gap-2 mb-4">
+            {linkStep === 'idle' && (
+              <div className="flex flex-wrap gap-2 mb-4">
                 <button
                   onClick={handleLinkWithPlex}
                   className="text-sm px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-700 text-white transition-colors"
                 >
-                  Link with Plex
+                  {configured ? 'Re-link with Plex' : 'Link with Plex'}
                 </button>
                 <button
                   onClick={() => setShowManual(!showManual)}
