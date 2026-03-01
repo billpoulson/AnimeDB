@@ -74,6 +74,12 @@ export function initDb(dbPath: string): Database.Database {
   if (!peerCols.some((c) => c.name === 'last_seen')) {
     db.exec('ALTER TABLE peers ADD COLUMN last_seen TEXT');
   }
+  if (!peerCols.some((c) => c.name === 'auto_replicate')) {
+    db.exec('ALTER TABLE peers ADD COLUMN auto_replicate INTEGER DEFAULT 0');
+  }
+  if (!peerCols.some((c) => c.name === 'sync_library_id')) {
+    db.exec('ALTER TABLE peers ADD COLUMN sync_library_id TEXT');
+  }
 
   const dlCols = db.pragma('table_info(downloads)') as { name: string }[];
   if (!dlCols.some((c) => c.name === 'moved_to_library')) {

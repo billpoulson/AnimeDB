@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import {
-  ApiKey, Peer, NetworkingInfo, ApiKeyCreated,
+  ApiKey, Peer, NetworkingInfo, ApiKeyCreated, Library,
   getApiKeys, createApiKey, deleteApiKey,
-  getPeers, addPeer, deletePeer, connectPeer,
+  getPeers, addPeer, deletePeer, connectPeer, updatePeer,
   getNetworking, setExternalUrl, resolvePeer, retryUpnp,
+  getLibraries,
 } from '../api/client';
 import RemoteLibrary from '../components/RemoteLibrary';
 
@@ -33,12 +34,18 @@ export default function Peers() {
   const [upnpRetryError, setUpnpRetryError] = useState<string | null>(null);
   const [altPort, setAltPort] = useState('');
 
+  const [libraries, setLibraries] = useState<Library[]>([]);
+  const [syncEditingId, setSyncEditingId] = useState<string | null>(null);
+  const [syncLibraryId, setSyncLibraryId] = useState('');
+  const [syncUpdating, setSyncUpdating] = useState(false);
+
   const refresh = async () => {
-    const [net, k, p] = await Promise.all([getNetworking(), getApiKeys(), getPeers()]);
+    const [net, k, p, libs] = await Promise.all([getNetworking(), getApiKeys(), getPeers(), getLibraries()]);
     setNetworking(net);
     setUrlInput(net.externalUrl || '');
     setKeys(k);
     setPeers(p);
+    setLibraries(libs);
   };
 
   useEffect(() => { refresh(); }, []);
@@ -141,6 +148,22 @@ export default function Peers() {
   const handleDeletePeer = async (id: string) => {
     await deletePeer(id);
     refresh();
+  };
+
+  const handleAutoSyncToggle = async (peer: Peer, enable: boolean, libraryId?: string | null) => {
+    setSyncUpdating(true);
+    setSyncEditingId(null);
+    try {
+      await updatePeer(peer.id, {
+        auto_replicate: enable,
+        sync_library_id: enable ? (libraryId || null) : null,
+      });
+      refresh();
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to update');
+    } finally {
+      setSyncUpdating(false);
+    }
   };
 
   const handleResolve = async (id: string) => {
@@ -457,7 +480,7 @@ export default function Peers() {
                   <th className="px-4 py-3 font-medium">Name</th>
                   <th className="px-4 py-3 font-medium">URL</th>
                   <th className="px-4 py-3 font-medium">Last seen</th>
-                  <th className="px-4 py-3 font-medium w-44"></th>
+                  <th className="px-4 py-3 font-medium w-64"></th>
                 </tr>
               </thead>
               <tbody>
@@ -476,7 +499,59 @@ export default function Peers() {
                       {p.last_seen ? new Date(p.last_seen).toLocaleString() : 'Never'}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {syncEditingId === p.id ? (
+                          <div className="flex items-center gap-1.5">
+                            <select
+                              value={syncLibraryId}
+                              onChange={(e) => setSyncLibraryId(e.target.value)}
+                              className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                              aria-label="Target library"
+                            >
+                              <option value="">Downloads folder</option>
+                              {libraries.map((lib) => (
+                                <option key={lib.id} value={lib.id}>{lib.name}</option>
+                              ))}
+                            </select>
+                            <button
+                              onClick={() => handleAutoSyncToggle(p, true, syncLibraryId || null)}
+                              disabled={syncUpdating}
+                              className="text-xs px-2 py-1 rounded bg-purple-600 hover:bg-purple-700 text-white transition-colors disabled:opacity-50"
+                            >
+                              Enable
+                            </button>
+                            <button
+                              onClick={() => setSyncEditingId(null)}
+                              className="text-xs px-2 py-1 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : p.auto_replicate ? (
+                          <>
+                            <span className="text-xs text-purple-400 flex items-center gap-1">
+                              <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885 5.002 5.002 0 00-8.716-1.834 1 1 0 01-1-1V3a1 1 0 011-1zm12 0a1 1 0 011 1v2.101a7.002 7.002 0 01-11.601 2.566 1 1 0 11 1.885 5.002 5.002 0 008.716 1.834 1 1 0 011 1V3a1 1 0 011-1z" clipRule="evenodd" />
+                              </svg>
+                              Auto-sync on
+                            </span>
+                            <button
+                              onClick={() => handleAutoSyncToggle(p, false)}
+                              disabled={syncUpdating}
+                              className="text-xs px-2 py-1 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors disabled:opacity-50"
+                            >
+                              Off
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => { setSyncEditingId(p.id); setSyncLibraryId(p.sync_library_id || ''); }}
+                            disabled={syncUpdating}
+                            className="text-xs px-2.5 py-1 rounded bg-purple-600 hover:bg-purple-700 text-white transition-colors disabled:opacity-50"
+                          >
+                            Auto-sync
+                          </button>
+                        )}
                         <button
                           onClick={() => setBrowsingPeer(p)}
                           className="text-xs px-2.5 py-1 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors"

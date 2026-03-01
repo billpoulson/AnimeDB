@@ -226,6 +226,8 @@ export interface Peer {
   url: string;
   instance_id: string | null;
   last_seen: string | null;
+  auto_replicate?: boolean;
+  sync_library_id?: string | null;
   created_at: string;
 }
 
@@ -256,6 +258,14 @@ export async function addPeer(data: { name: string; url: string; api_key: string
 
 export async function deletePeer(id: string): Promise<void> {
   await api.delete(`/peers/${id}`);
+}
+
+export async function updatePeer(
+  id: string,
+  data: { auto_replicate?: boolean; sync_library_id?: string | null },
+): Promise<Peer> {
+  const res = await api.patch(`/peers/${id}`, data);
+  return res.data;
 }
 
 export async function getPeerLibrary(peerId: string): Promise<RemoteLibraryResponse> {

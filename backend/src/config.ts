@@ -30,4 +30,8 @@ export const config = {
     sectionMovies: parseInt(process.env.PLEX_SECTION_MOVIES || '1', 10),
     sectionTv: parseInt(process.env.PLEX_SECTION_TV || '2', 10),
   },
+  peerSyncIntervalMinutes: Math.min(
+    1440,
+    Math.max(5, parseInt(process.env.PEER_SYNC_INTERVAL_MINUTES || '15', 10)),
+  ),
 };

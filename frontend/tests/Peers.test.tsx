@@ -19,10 +19,11 @@ const defaultNetworking = {
   },
 };
 
-function setupMocks(networking = defaultNetworking) {
+function setupMocks(networking = defaultNetworking, peers: api.Peer[] = [], libraries: api.Library[] = []) {
   vi.mocked(api.getNetworking).mockResolvedValue(networking);
   vi.mocked(api.getApiKeys).mockResolvedValue([]);
-  vi.mocked(api.getPeers).mockResolvedValue([]);
+  vi.mocked(api.getPeers).mockResolvedValue(peers);
+  vi.mocked(api.getLibraries).mockResolvedValue(libraries);
 }
 
 describe('Peers', () => {
@@ -145,6 +146,103 @@ describe('Peers', () => {
 
       await waitFor(() => {
         expect(api.retryUpnp).toHaveBeenCalledWith(4000);
+      });
+    });
+  });
+
+  describe('Auto-sync', () => {
+    it('shows Auto-sync button when peer has auto_replicate false', async () => {
+      setupMocks(defaultNetworking, [
+        { id: 'p1', name: 'NodeA', url: 'http://nodea:3000', instance_id: 'i1', last_seen: null, created_at: '2025-01-01' },
+      ]);
+
+      render(
+        <MemoryRouter>
+          <Peers />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('NodeA')).toBeInTheDocument();
+      });
+
+      expect(screen.getByRole('button', { name: /auto-sync/i })).toBeInTheDocument();
+    });
+
+    it('shows Auto-sync on badge when peer has auto_replicate true', async () => {
+      setupMocks(defaultNetworking, [
+        { id: 'p1', name: 'NodeA', url: 'http://nodea:3000', instance_id: 'i1', last_seen: null, auto_replicate: true, created_at: '2025-01-01' },
+      ]);
+
+      render(
+        <MemoryRouter>
+          <Peers />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('NodeA')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText(/auto-sync on/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^off$/i })).toBeInTheDocument();
+    });
+
+    it('calls updatePeer with auto_replicate false when Off clicked', async () => {
+      const user = userEvent.setup();
+      vi.mocked(api.updatePeer).mockResolvedValue({
+        id: 'p1', name: 'NodeA', url: 'http://nodea:3000', instance_id: 'i1', last_seen: null, auto_replicate: false, created_at: '2025-01-01',
+      });
+      setupMocks(defaultNetworking, [
+        { id: 'p1', name: 'NodeA', url: 'http://nodea:3000', instance_id: 'i1', last_seen: null, auto_replicate: true, created_at: '2025-01-01' },
+      ]);
+
+      render(
+        <MemoryRouter>
+          <Peers />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /^off$/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /^off$/i }));
+
+      await waitFor(() => {
+        expect(api.updatePeer).toHaveBeenCalledWith('p1', { auto_replicate: false, sync_library_id: null });
+      });
+    });
+
+    it('calls updatePeer with auto_replicate true when Enable clicked from picker', async () => {
+      const user = userEvent.setup();
+      vi.mocked(api.updatePeer).mockResolvedValue({
+        id: 'p1', name: 'NodeA', url: 'http://nodea:3000', instance_id: 'i1', last_seen: null, auto_replicate: true, created_at: '2025-01-01',
+      });
+      setupMocks(defaultNetworking, [
+        { id: 'p1', name: 'NodeA', url: 'http://nodea:3000', instance_id: 'i1', last_seen: null, created_at: '2025-01-01' },
+      ], [{ id: 'lib1', name: 'Movies', path: '/media/movies', type: 'movies', plex_section_id: null, created_at: '2025-01-01' }]);
+
+      render(
+        <MemoryRouter>
+          <Peers />
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /auto-sync/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /auto-sync/i }));
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /enable/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /enable/i }));
+
+      await waitFor(() => {
+        expect(api.updatePeer).toHaveBeenCalledWith('p1', expect.objectContaining({ auto_replicate: true }));
       });
     });
   });

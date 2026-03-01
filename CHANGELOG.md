@@ -6,6 +6,8 @@ All notable changes to AnimeDB will be documented in this file.
 
 ### Added
 
+- **Test coverage for auto-sync** — Frontend Peers tests for auto-sync toggle and library picker; backend peerSync unit tests; Docker p2p integration tests for PATCH auto_replicate.
+- **Auto-sync peer library** — Enable Auto-sync on a linked peer to automatically pull new content as it is added on the remote. Polls every 15 minutes (configurable via `PEER_SYNC_INTERVAL_MINUTES`). Optionally choose a target library for auto-move.
 - **Plex Section Picker** — Fetches library sections from the Plex server and replaces manual section ID inputs with dropdowns. Includes "Refresh sections" button, 15-minute auto-refresh, and per-library section override in the library form.
 - **Plex OAuth flow** — Link with Plex via PIN authorization instead of manual token lookup. Use "Link with Plex" or "Re-link with Plex" in Settings.
 - **Upgrade test** — Validates upgrading from the previous version to the current version before release.

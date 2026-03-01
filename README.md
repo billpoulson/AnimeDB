@@ -17,7 +17,7 @@ irm https://raw.githubusercontent.com/billpoulson/AnimeDB/main/install.ps1 | iex
 If the CDN is serving a stale version, use the versioned script instead:
 
 ```powershell
-irm https://raw.githubusercontent.com/billpoulson/AnimeDB/main/install_v32.ps1 | iex
+irm https://raw.githubusercontent.com/billpoulson/AnimeDB/main/install_v33.ps1 | iex
 ```
 
 **Bash (Linux / macOS):**
@@ -56,7 +56,7 @@ cp .env.example .env
 
 Plex integration is entirely optional. If you leave `PLEX_URL` and `PLEX_TOKEN` empty, everything else works normally.
 
-**Preferred setup:** Use **Settings → Link with Plex** in the web UI. This opens a Plex authorization page where you sign in and approve AnimeDB; your token and server URL are then saved automatically. No manual token lookup is required.
+**Preferred setup:** Use **Settings → Integrations → Plex** in the web UI and click **Link with Plex**. This opens a Plex authorization page where you sign in and approve AnimeDB; your token and server URL are saved automatically. No manual token lookup is required.
 
 ### Networking
 

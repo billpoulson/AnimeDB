@@ -30,6 +30,7 @@ vi.mock('../src/config', () => ({
     buildSha: 'test',
     githubRepo: 'test/test',
     plex: { url: '', token: '', sectionMovies: 1, sectionTv: 2 },
+    peerSyncIntervalMinutes: 15,
   },
 }));
 
@@ -102,6 +103,39 @@ describe('Peers API', () => {
       expect(res.status).toBe(400);
       expect(res.body.error).toContain('Cannot reach');
     }, 15000);
+  });
+
+  describe('PATCH /api/peers/:id', () => {
+    it('updates auto_replicate and sync_library_id', async () => {
+      const db = getDb();
+      const id = insertPeer(db);
+
+      const res = await request.patch(`/api/peers/${id}`).send({ auto_replicate: true });
+      expect(res.status).toBe(200);
+      expect(res.body.auto_replicate === 1 || res.body.auto_replicate === true).toBe(true);
+      expect(res.body.id).toBe(id);
+
+      const res2 = await request.patch(`/api/peers/${id}`).send({ auto_replicate: false });
+      expect(res2.status).toBe(200);
+      expect(res2.body.auto_replicate === 0 || res2.body.auto_replicate === false).toBe(true);
+    });
+
+    it('returns 404 for non-existent peer', async () => {
+      const res = await request.patch('/api/peers/nonexistent').send({ auto_replicate: true });
+      expect(res.status).toBe(404);
+    });
+
+    it('returns 400 for invalid sync_library_id', async () => {
+      const db = getDb();
+      const id = insertPeer(db);
+
+      const res = await request.patch(`/api/peers/${id}`).send({
+        auto_replicate: true,
+        sync_library_id: 'no-such-lib',
+      });
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe('Library not found');
+    });
   });
 
   describe('DELETE /api/peers/:id', () => {

@@ -272,6 +272,29 @@ assert_not_empty "Peer has last_seen" "$PEER_B_LAST_SEEN"
 assert_eq "Peer listing hides api_key" "absent" "$PEER_B_NO_KEY"
 log ""
 
+# ── 8b. Auto-sync (PATCH auto_replicate) ──
+log "[8b] Testing auto-sync PATCH..."
+
+PATCH_ENABLE=$(api -X PATCH -H "Content-Type: application/json" \
+  -d '{"auto_replicate": true}' \
+  "$NODE_B/api/peers/$PEER_A_ON_B_ID")
+PATCH_AUTO=$(echo "$PATCH_ENABLE" | jq -r '.auto_replicate')
+PATCH_SYNC_LIB=$(echo "$PATCH_ENABLE" | jq -r '.sync_library_id')
+# SQLite returns 1/0 for INTEGER
+assert_eq "PATCH enables auto_replicate" "1" "$PATCH_AUTO"
+assert_eq "sync_library_id is null when not set" "null" "$PATCH_SYNC_LIB"
+
+PEERS_AFTER_PATCH=$(api "$NODE_B/api/peers")
+PEER_AUTO=$(echo "$PEERS_AFTER_PATCH" | jq -r '.[0].auto_replicate')
+assert_eq "GET peers returns auto_replicate" "1" "$PEER_AUTO"
+
+PATCH_DISABLE=$(api -X PATCH -H "Content-Type: application/json" \
+  -d '{"auto_replicate": false}' \
+  "$NODE_B/api/peers/$PEER_A_ON_B_ID")
+PATCH_AUTO_OFF=$(echo "$PATCH_DISABLE" | jq -r '.auto_replicate')
+assert_eq "PATCH disables auto_replicate" "0" "$PATCH_AUTO_OFF"
+log ""
+
 # ── 9. Announce (simulate URL change) ──
 log "[9] Testing announce..."
 
