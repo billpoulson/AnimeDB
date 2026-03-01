@@ -1,6 +1,10 @@
-## Install Script Versioning (CRITICAL)
+## Commit Checklist (CRITICAL)
 
-On EVERY commit — regardless of whether `install.ps1` was directly modified — always:
+Before EVERY commit, complete BOTH of the following:
+
+### 1. Install Script Versioning
+
+Regardless of whether `install.ps1` was directly modified:
 
 1. Copy `install.ps1` to `install_v<N>.ps1`, incrementing N from the previous version.
 2. Delete the old `install_v<N-1>.ps1`.
@@ -8,6 +12,6 @@ On EVERY commit — regardless of whether `install.ps1` was directly modified �
 
 This ensures the versioned script always reflects the latest state of the codebase and bypasses GitHub CDN caching. To find the current version, check existing `install_v*.ps1` files in the repo root.
 
-## Release Notes (CRITICAL)
+### 2. Release Notes
 
-On EVERY commit that changes user-facing behavior, features, or fixes — always update the release notes. Add an entry to `CHANGELOG.md` (create it if missing) under an `[Unreleased]` section or the appropriate version heading. Include a brief, user-oriented description of what changed.
+Update `CHANGELOG.md` (create it if missing) for every commit that changes user-facing behavior, features, or fixes. Add an entry under the `[Unreleased]` section or the appropriate version heading. Include a brief, user-oriented description of what changed.

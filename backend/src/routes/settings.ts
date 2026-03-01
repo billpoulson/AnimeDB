@@ -85,12 +85,13 @@ router.get('/plex/pin/:pinId', async (req: Request, res: Response) => {
 });
 
 router.get('/plex/servers', async (req: Request, res: Response) => {
-  const token = typeof req.query.token === 'string' ? req.query.token : '';
-  if (!token) {
-    return res.status(400).json({ error: 'token is required' });
+  // Use plexToken to avoid conflicting with auth middleware's req.query.token (session)
+  const plexToken = typeof req.query.plexToken === 'string' ? req.query.plexToken : '';
+  if (!plexToken) {
+    return res.status(400).json({ error: 'plexToken is required' });
   }
   try {
-    const servers = await getPlexServers(token);
+    const servers = await getPlexServers(plexToken);
     res.json({ servers });
   } catch (err: any) {
     res.status(500).json({ error: err.response?.data ?? err.message });

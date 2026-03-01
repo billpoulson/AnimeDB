@@ -296,7 +296,12 @@ function PlexIntegration({ onConnectionChange }: { onConnectionChange: () => voi
               pollRef.current = null;
             }
             setLinkToken(res.token);
-            const servers = await getPlexServers(res.token);
+            let servers: PlexServer[] = [];
+            try {
+              servers = await getPlexServers(res.token);
+            } catch {
+              // Server list may fail (e.g. network, API changes); user can enter URL manually
+            }
             setLinkServers(servers);
             if (servers.length === 1) setSelectedServerUri(servers[0].uri);
             setLinkStep('server-pick');

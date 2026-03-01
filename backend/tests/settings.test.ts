@@ -223,7 +223,7 @@ describe('Settings API', () => {
 
   describe('GET /api/settings/plex/servers', () => {
     it('returns server list when token provided', async () => {
-      const res = await request.get('/api/settings/plex/servers').query({ token: 'my-token' });
+      const res = await request.get('/api/settings/plex/servers').query({ plexToken: 'my-token' });
       expect(res.status).toBe(200);
       expect(res.body.servers).toEqual([{ name: 'My Plex', uri: 'http://192.168.1.50:32400' }]);
     });
@@ -237,7 +237,7 @@ describe('Settings API', () => {
       const { getPlexServers } = await import('../src/services/plexAuth');
       vi.mocked(getPlexServers).mockRejectedValueOnce(new Error('Invalid token'));
 
-      const res = await request.get('/api/settings/plex/servers').query({ token: 'bad' });
+      const res = await request.get('/api/settings/plex/servers').query({ plexToken: 'bad' });
       expect(res.status).toBe(500);
       expect(res.body.error).toBeDefined();
     });

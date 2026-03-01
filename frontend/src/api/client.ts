@@ -407,6 +407,6 @@ export async function pollPlexPin(pinId: number, code: string): Promise<PlexPinP
 }
 
 export async function getPlexServers(token: string): Promise<PlexServer[]> {
-  const res = await api.get('/settings/plex/servers', { params: { token } });
+  const res = await api.get('/settings/plex/servers', { params: { plexToken: token } });
   return res.data.servers ?? [];
 }
