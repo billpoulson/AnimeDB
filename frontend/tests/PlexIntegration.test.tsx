@@ -159,4 +159,86 @@ describe('PlexIntegration', () => {
       expect(screen.getByText(/plex service unavailable/i)).toBeInTheDocument();
     });
   });
+
+  it('fetches and displays section dropdowns when Plex is configured', async () => {
+    vi.mocked(api.getPlexSettings).mockResolvedValue({
+      url: 'http://plex:32400',
+      token: 'xxx',
+      sectionMovies: 1,
+      sectionTv: 2,
+      hasToken: true,
+    });
+    vi.mocked(api.getPlexSections).mockResolvedValue([
+      { id: 1, title: 'Movies', type: 'movie' },
+      { id: 2, title: 'Anime Movies', type: 'movie' },
+      { id: 3, title: 'TV Shows', type: 'show' },
+    ]);
+
+    render(<Settings />);
+
+    await waitFor(() => {
+      expect(api.getPlexSections).toHaveBeenCalled();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('option', { name: 'Movies' })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: 'Anime Movies' })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: 'TV Shows' })).toBeInTheDocument();
+    });
+  });
+
+  it('Refresh sections button calls getPlexSections with refresh', async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.getPlexSettings).mockResolvedValue({
+      url: 'http://plex:32400',
+      token: 'xxx',
+      sectionMovies: 1,
+      sectionTv: 2,
+      hasToken: true,
+    });
+    vi.mocked(api.getPlexSections).mockResolvedValue([
+      { id: 1, title: 'Movies', type: 'movie' },
+      { id: 3, title: 'TV Shows', type: 'show' },
+    ]);
+
+    render(<Settings />);
+
+    await waitFor(() => {
+      expect(api.getPlexSections).toHaveBeenCalled();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /refresh sections/i })).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole('button', { name: /refresh sections/i }));
+
+    await waitFor(() => {
+      expect(api.getPlexSections).toHaveBeenCalledWith({ refresh: true });
+    });
+  });
+
+  it('shows fallback when getPlexSections fails', async () => {
+    vi.mocked(api.getPlexSettings).mockResolvedValue({
+      url: 'http://plex:32400',
+      token: 'xxx',
+      sectionMovies: 1,
+      sectionTv: 2,
+      hasToken: true,
+    });
+    vi.mocked(api.getPlexSections).mockRejectedValue({
+      response: { data: { error: 'Plex unreachable' } },
+    });
+
+    render(<Settings />);
+
+    await waitFor(() => {
+      expect(api.getPlexSections).toHaveBeenCalled();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/using fallback:/i)).toBeInTheDocument();
+      expect(screen.getByText(/plex unreachable/i)).toBeInTheDocument();
+    });
+  });
 });
