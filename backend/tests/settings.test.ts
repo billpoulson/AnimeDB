@@ -30,6 +30,10 @@ vi.mock('../src/services/plexAuth', () => ({
   createPlexPin: vi.fn().mockResolvedValue({ authUrl: 'https://app.plex.tv/auth#?code=TEST', code: 'TEST', pinId: 123 }),
   pollPlexPin: vi.fn().mockResolvedValue({ token: null }),
   getPlexServers: vi.fn().mockResolvedValue([{ name: 'My Plex', uri: 'http://192.168.1.50:32400' }]),
+  getPlexSections: vi.fn().mockResolvedValue([
+    { id: 1, title: 'Movies', type: 'movie' },
+    { id: 2, title: 'TV Shows', type: 'show' },
+  ]),
 }));
 
 describe('Settings API', () => {
@@ -238,6 +242,61 @@ describe('Settings API', () => {
       vi.mocked(getPlexServers).mockRejectedValueOnce(new Error('Invalid token'));
 
       const res = await request.get('/api/settings/plex/servers').query({ plexToken: 'bad' });
+      expect(res.status).toBe(500);
+      expect(res.body.error).toBeDefined();
+    });
+  });
+
+  describe('GET /api/settings/plex/sections', () => {
+    it('returns sections when plexUrl and plexToken provided', async () => {
+      const res = await request
+        .get('/api/settings/plex/sections')
+        .query({ plexUrl: 'http://plex:32400', plexToken: 'my-token' });
+      expect(res.status).toBe(200);
+      expect(res.body.sections).toEqual([
+        { id: 1, title: 'Movies', type: 'movie' },
+        { id: 2, title: 'TV Shows', type: 'show' },
+      ]);
+    });
+
+    it('uses saved settings when params omitted', async () => {
+      const db = getDb();
+      db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)").run('plex_url', 'http://saved:32400');
+      db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)").run('plex_token', 'saved-token');
+
+      const res = await request.get('/api/settings/plex/sections');
+      expect(res.status).toBe(200);
+      expect(res.body.sections).toHaveLength(2);
+
+      const { getPlexSections } = await import('../src/services/plexAuth');
+      expect(getPlexSections).toHaveBeenCalledWith('http://saved:32400', 'saved-token', false);
+    });
+
+    it('returns 400 when no url/token and Plex not configured', async () => {
+      const res = await request.get('/api/settings/plex/sections');
+      expect(res.status).toBe(400);
+      expect(res.body.error).toContain('required');
+    });
+
+    it('passes refresh=true when requested', async () => {
+      const db = getDb();
+      db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)").run('plex_url', 'http://plex:32400');
+      db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)").run('plex_token', 'tok');
+
+      const res = await request.get('/api/settings/plex/sections').query({ refresh: 'true' });
+      expect(res.status).toBe(200);
+
+      const { getPlexSections } = await import('../src/services/plexAuth');
+      expect(getPlexSections).toHaveBeenCalledWith('http://plex:32400', 'tok', true);
+    });
+
+    it('returns 500 when getPlexSections throws', async () => {
+      const { getPlexSections } = await import('../src/services/plexAuth');
+      vi.mocked(getPlexSections).mockRejectedValueOnce(new Error('Plex unreachable'));
+
+      const res = await request
+        .get('/api/settings/plex/sections')
+        .query({ plexUrl: 'http://plex:32400', plexToken: 'tok' });
       expect(res.status).toBe(500);
       expect(res.body.error).toBeDefined();
     });

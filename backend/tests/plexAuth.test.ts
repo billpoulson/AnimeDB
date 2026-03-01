@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import axios from 'axios';
-import { createPlexPin, pollPlexPin, getPlexServers } from '../src/services/plexAuth';
+import { createPlexPin, pollPlexPin, getPlexServers, getPlexSections, clearPlexSectionsCache } from '../src/services/plexAuth';
 
 vi.mock('axios');
 vi.mock('../src/db', () => ({
@@ -10,6 +10,7 @@ vi.mock('../src/db', () => ({
 describe('plexAuth', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clearPlexSectionsCache();
   });
 
   describe('createPlexPin', () => {
@@ -208,6 +209,117 @@ describe('plexAuth', () => {
       vi.mocked(axios.get).mockRejectedValue(new Error('401 Unauthorized'));
 
       await expect(getPlexServers('bad-token')).rejects.toThrow('401 Unauthorized');
+    });
+  });
+
+  describe('getPlexSections', () => {
+    it('parses sections from library/sections API', async () => {
+      vi.mocked(axios.get).mockResolvedValue({
+        data: {
+          MediaContainer: {
+            Directory: [
+              { key: '1', title: 'Movies', type: 'movie' },
+              { key: '2', title: 'Anime Movies', type: 'movie' },
+              { key: '3', title: 'TV Shows', type: 'show' },
+            ],
+          },
+        },
+      });
+
+      const result = await getPlexSections('http://plex:32400', 'token');
+
+      expect(axios.get).toHaveBeenCalledWith(
+        'http://plex:32400/library/sections',
+        expect.objectContaining({
+          headers: { Accept: 'application/json', 'X-Plex-Token': 'token' },
+        })
+      );
+      expect(result).toEqual([
+        { id: 2, title: 'Anime Movies', type: 'movie' },
+        { id: 1, title: 'Movies', type: 'movie' },
+        { id: 3, title: 'TV Shows', type: 'show' },
+      ]);
+    });
+
+    it('filters to movie and show types only', async () => {
+      vi.mocked(axios.get).mockResolvedValue({
+        data: {
+          MediaContainer: {
+            Directory: [
+              { key: '1', title: 'Movies', type: 'movie' },
+              { key: '2', title: 'Music', type: 'artist' },
+              { key: '3', title: 'TV', type: 'show' },
+            ],
+          },
+        },
+      });
+
+      const result = await getPlexSections('http://plex-filter:32400', 'token');
+
+      expect(result).toEqual([
+        { id: 1, title: 'Movies', type: 'movie' },
+        { id: 3, title: 'TV', type: 'show' },
+      ]);
+    });
+
+    it('returns empty array when no directories', async () => {
+      vi.mocked(axios.get).mockResolvedValue({
+        data: { MediaContainer: { Directory: [] } },
+      });
+
+      const result = await getPlexSections('http://plex-empty:32400', 'token');
+
+      expect(result).toEqual([]);
+    });
+
+    it('sorts sections by title', async () => {
+      vi.mocked(axios.get).mockResolvedValue({
+        data: {
+          MediaContainer: {
+            Directory: [
+              { key: '2', title: 'Z Movies', type: 'movie' },
+              { key: '1', title: 'A Movies', type: 'movie' },
+            ],
+          },
+        },
+      });
+
+      const result = await getPlexSections('http://plex-sort:32400', 'token');
+
+      expect(result).toEqual([
+        { id: 1, title: 'A Movies', type: 'movie' },
+        { id: 2, title: 'Z Movies', type: 'movie' },
+      ]);
+    });
+
+    it('bypasses cache when refresh=true', async () => {
+      vi.mocked(axios.get).mockResolvedValue({
+        data: {
+          MediaContainer: {
+            Directory: [{ key: '1', title: 'Movies', type: 'movie' }],
+          },
+        },
+      });
+
+      await getPlexSections('http://plex-cache:32400', 'token', false);
+      await getPlexSections('http://plex-cache:32400', 'token', false);
+      expect(axios.get).toHaveBeenCalledTimes(1);
+
+      await getPlexSections('http://plex-cache:32400', 'token', true);
+      expect(axios.get).toHaveBeenCalledTimes(2);
+    });
+
+    it('strips trailing slash from server URL', async () => {
+      vi.mocked(axios.get).mockResolvedValue({
+        data: { MediaContainer: { Directory: [] } },
+      });
+
+      await getPlexSections('http://plex-slash:32400/', 'token');
+
+      expect(axios.get).toHaveBeenCalledWith(
+        'http://plex-slash:32400/library/sections',
+        expect.any(Object)
+      );
     });
   });
 });

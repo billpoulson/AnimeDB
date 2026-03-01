@@ -16,6 +16,7 @@ All notable changes to AnimeDB will be documented in this file.
 
 ### Fixed
 
+- **Plex Section Picker** — Backend `/plex/sections` API now implemented; was returning HTML instead of JSON.
 - **Docker in-app update** — Fixes "Command failed: npx tsc" error when updating from the Settings screen (Express 5 type compatibility).
 - **Plex Link logout** — Fixes user being logged out when Plex PIN authorization completes (query param conflict with auth).
 - **Plex server picker** — Shows server selection even when Plex API returns no servers; allows manual URL entry.

@@ -26,6 +26,63 @@ export interface PlexServer {
   uri: string;
 }
 
+export interface PlexSection {
+  id: number;
+  title: string;
+  type: string;
+}
+
+const SECTIONS_CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
+const sectionsCache = new Map<string, { sections: PlexSection[]; fetchedAt: number }>();
+
+/** Clears the sections cache. Exported for tests. */
+export function clearPlexSectionsCache(): void {
+  sectionsCache.clear();
+}
+
+async function fetchPlexSectionsFromServer(serverUrl: string, token: string): Promise<PlexSection[]> {
+  const base = serverUrl.replace(/\/$/, '');
+  const res = await axios.get(`${base}/library/sections`, {
+    headers: {
+      Accept: 'application/json',
+      'X-Plex-Token': token,
+    },
+    timeout: 10000,
+  });
+
+  const dirs = res.data?.MediaContainer?.Directory ?? [];
+  const sections: PlexSection[] = dirs
+    .filter((d: { type?: string }) => d.type === 'movie' || d.type === 'show')
+    .map((d: { key: string; title?: string; type?: string }) => ({
+      id: parseInt(String(d.key), 10) || 0,
+      title: d.title ?? 'Unknown',
+      type: d.type ?? 'movie',
+    }))
+    .filter((s: PlexSection) => s.id > 0);
+
+  sections.sort((a, b) => a.title.localeCompare(b.title));
+  return sections;
+}
+
+export async function getPlexSections(
+  serverUrl: string,
+  token: string,
+  refresh = false
+): Promise<PlexSection[]> {
+  const url = serverUrl.replace(/\/$/, '');
+  const cacheKey = url;
+  const cached = sectionsCache.get(cacheKey);
+  const now = Date.now();
+
+  if (!refresh && cached && now - cached.fetchedAt < SECTIONS_CACHE_TTL_MS) {
+    return cached.sections;
+  }
+
+  const sections = await fetchPlexSectionsFromServer(serverUrl, token);
+  sectionsCache.set(cacheKey, { sections, fetchedAt: now });
+  return sections;
+}
+
 export async function createPlexPin(): Promise<PlexPinResult> {
   const res = await axios.post(
     'https://plex.tv/api/v2/pins',

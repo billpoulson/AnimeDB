@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { getPlexSettings, savePlexSettings } from '../services/settings';
 import { testPlexConnection } from '../services/plexClient';
-import { createPlexPin, pollPlexPin, getPlexServers } from '../services/plexAuth';
+import { createPlexPin, pollPlexPin, getPlexServers, getPlexSections } from '../services/plexAuth';
 
 const router = Router();
 
@@ -93,6 +93,32 @@ router.get('/plex/servers', async (req: Request, res: Response) => {
   try {
     const servers = await getPlexServers(plexToken);
     res.json({ servers });
+  } catch (err: any) {
+    res.status(500).json({ error: err.response?.data ?? err.message });
+  }
+});
+
+router.get('/plex/sections', async (req: Request, res: Response) => {
+  const plexUrl = typeof req.query.plexUrl === 'string' ? req.query.plexUrl.trim() : '';
+  const plexToken = typeof req.query.plexToken === 'string' ? req.query.plexToken : '';
+  const refresh = req.query.refresh === 'true';
+
+  let url = plexUrl;
+  let token = plexToken;
+
+  if (!url || !token) {
+    const saved = getPlexSettings();
+    url = url || saved.url || '';
+    token = token || saved.token || '';
+  }
+
+  if (!url || !token) {
+    return res.status(400).json({ error: 'Plex URL and token are required. Configure Plex first or pass plexUrl and plexToken.' });
+  }
+
+  try {
+    const sections = await getPlexSections(url, token, refresh);
+    res.json({ sections });
   } catch (err: any) {
     res.status(500).json({ error: err.response?.data ?? err.message });
   }
