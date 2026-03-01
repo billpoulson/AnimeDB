@@ -7,3 +7,7 @@ On EVERY commit — regardless of whether `install.ps1` was directly modified �
 3. Update the README.md to reference the new versioned script filename.
 
 This ensures the versioned script always reflects the latest state of the codebase and bypasses GitHub CDN caching. To find the current version, check existing `install_v*.ps1` files in the repo root.
+
+## Release Notes (CRITICAL)
+
+On EVERY commit that changes user-facing behavior, features, or fixes — always update the release notes. Add an entry to `CHANGELOG.md` (create it if missing) under an `[Unreleased]` section or the appropriate version heading. Include a brief, user-oriented description of what changed.
