@@ -45,12 +45,12 @@ async function setupSettingsMocks(
 }
 
 test.describe('Settings - sidebar layout', () => {
-  test('renders sidebar nav with Libraries, Plex, Updates links', async ({ page }) => {
+  test('renders sidebar nav with Libraries, Integrations, Updates links', async ({ page }) => {
     await setupSettingsMocks(page);
     await page.goto('/settings');
 
     await expect(page.getByRole('link', { name: 'Libraries', exact: true })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Plex', exact: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Integrations', exact: true })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Updates', exact: true })).toBeVisible();
   });
 
@@ -59,7 +59,7 @@ test.describe('Settings - sidebar layout', () => {
     await page.goto('/settings');
 
     await expect(page.getByRole('link', { name: 'Libraries' })).toHaveAttribute('href', '#libraries');
-    await expect(page.getByRole('link', { name: 'Plex' })).toHaveAttribute('href', '#plex');
+    await expect(page.getByRole('link', { name: 'Integrations' })).toHaveAttribute('href', '#integrations');
     await expect(page.getByRole('link', { name: 'Updates' })).toHaveAttribute('href', '#updates');
   });
 
@@ -83,10 +83,10 @@ test.describe('Settings - sidebar layout', () => {
     await setupSettingsMocks(page);
     await page.goto('/settings');
 
-    await page.getByRole('link', { name: 'Plex' }).click();
+    await page.getByRole('link', { name: 'Integrations' }).click();
 
-    await expect(page).toHaveURL(/\/settings#plex/);
-    await expect(page.locator('#plex')).toBeVisible();
+    await expect(page).toHaveURL(/\/settings#integrations/);
+    await expect(page.locator('#integrations')).toBeVisible();
   });
 
   test('hash URL loads correct section', async ({ page }) => {

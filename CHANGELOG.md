@@ -13,8 +13,8 @@ All notable changes to AnimeDB will be documented in this file.
 
 ### Changed
 
-- **Settings screen** — Sidebar navigation (Libraries, Plex, Updates, Security) with hash-based section links. Responsive layout: horizontal pill tabs on mobile.
-- **Plex Settings** — "Link with Plex" and "Re-link with Plex" buttons now visible even when Plex is already configured.
+- **Settings screen** — Sidebar navigation (Libraries, Integrations, Updates, Security) with hash-based section links. Responsive layout: horizontal pill tabs on mobile.
+- **Plex Integration** — Moved to its own screen at Settings → Integrations → Plex. Integrations section shows a Plex icon card linking to the Plex settings page.
 
 ### Fixed
 

@@ -42,12 +42,12 @@ describe('Settings', () => {
   });
 
   describe('sidebar layout', () => {
-    it('renders sidebar nav with Libraries, Plex, and Updates links', async () => {
+    it('renders sidebar nav with Libraries, Integrations, and Updates links', async () => {
       render(<Settings />);
 
       await waitFor(() => {
         expect(screen.getByRole('link', { name: /^libraries$/i })).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: /^plex$/i })).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /^integrations$/i })).toBeInTheDocument();
         expect(screen.getByRole('link', { name: /^updates$/i })).toBeInTheDocument();
       });
     });
@@ -57,7 +57,7 @@ describe('Settings', () => {
 
       await waitFor(() => {
         expect(screen.getByRole('link', { name: /^libraries$/i })).toHaveAttribute('href', '#libraries');
-        expect(screen.getByRole('link', { name: /^plex$/i })).toHaveAttribute('href', '#plex');
+        expect(screen.getByRole('link', { name: /^integrations$/i })).toHaveAttribute('href', '#integrations');
         expect(screen.getByRole('link', { name: /^updates$/i })).toHaveAttribute('href', '#updates');
       });
     });
@@ -91,7 +91,7 @@ describe('Settings', () => {
       });
 
       expect(container.querySelector('#libraries')).toBeInTheDocument();
-      expect(container.querySelector('#plex')).toBeInTheDocument();
+      expect(container.querySelector('#integrations')).toBeInTheDocument();
       expect(container.querySelector('#updates')).toBeInTheDocument();
       expect(container.querySelector('#security')).toBeInTheDocument();
     });
@@ -107,10 +107,11 @@ describe('Settings', () => {
       });
     });
 
-    it('renders Plex Integration section', async () => {
+    it('renders Integrations section with Plex', async () => {
       render(<Settings />);
 
       await waitFor(() => {
+        expect(screen.getByRole('heading', { name: /integrations/i })).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: /plex integration/i })).toBeInTheDocument();
       });
     });

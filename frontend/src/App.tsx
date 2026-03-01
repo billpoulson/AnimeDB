@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 import Library from './pages/Library';
 import Settings from './pages/Settings';
+import SettingsPlex from './pages/SettingsPlex';
 import Peers from './pages/Peers';
 import Docs from './pages/Docs';
 import Login from './pages/Login';
@@ -82,6 +83,7 @@ export default function App() {
             <Route path="/library" element={<Library />} />
             <Route path="/peers" element={<Peers />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/settings/plex" element={<SettingsPlex />} />
             <Route path="/docs" element={<Docs />} />
           </Routes>
         </main>
