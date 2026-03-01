@@ -16,6 +16,7 @@ All notable changes to AnimeDB will be documented in this file.
 
 ### Fixed
 
+- **UPnP Retry** — Retry now creates a fresh UPnP client instead of reusing a stale one from a failed discovery, so retries can succeed when the initial attempt times out. Frontend now shows error messages when retry fails or when an invalid port is entered.
 - **Plex Section Picker** — Backend `/plex/sections` API now implemented; was returning HTML instead of JSON.
 - **Docker in-app update** — Fixes "Command failed: npx tsc" error when updating from the Settings screen (Express 5 type compatibility).
 - **Plex Link logout** — Fixes user being logged out when Plex PIN authorization completes (query param conflict with auth).

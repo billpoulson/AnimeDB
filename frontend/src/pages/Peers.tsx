@@ -30,6 +30,7 @@ export default function Peers() {
   const [resolveResults, setResolveResults] = useState<Record<string, { ok: boolean; msg: string }>>({});
 
   const [upnpRetrying, setUpnpRetrying] = useState(false);
+  const [upnpRetryError, setUpnpRetryError] = useState<string | null>(null);
   const [altPort, setAltPort] = useState('');
 
   const refresh = async () => {
@@ -53,10 +54,14 @@ export default function Peers() {
   };
 
   const handleUpnpRetry = async () => {
+    setUpnpRetryError(null);
+    const port = altPort.trim() ? parseInt(altPort.trim(), 10) : undefined;
+    if (port !== undefined && (isNaN(port) || port < 1 || port > 65535)) {
+      setUpnpRetryError('Enter a valid port (1–65535)');
+      return;
+    }
     setUpnpRetrying(true);
     try {
-      const port = altPort.trim() ? parseInt(altPort.trim(), 10) : undefined;
-      if (port !== undefined && (isNaN(port) || port < 1 || port > 65535)) return;
       const result = await retryUpnp(port);
       setNetworking((prev) => prev ? {
         ...prev,
@@ -64,6 +69,8 @@ export default function Peers() {
         upnp: result.upnp,
       } : prev);
       if (result.externalUrl) setUrlInput(result.externalUrl);
+    } catch (err: any) {
+      setUpnpRetryError(err.response?.data?.error || err.message || 'Retry failed');
     } finally {
       setUpnpRetrying(false);
     }
@@ -189,10 +196,10 @@ export default function Peers() {
                   ) : (
                     <span className="text-xs text-gray-500">Not active (manual URL set)</span>
                   )}
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     <input
                       value={altPort}
-                      onChange={(e) => setAltPort(e.target.value.replace(/\D/g, ''))}
+                      onChange={(e) => { setAltPort(e.target.value.replace(/\D/g, '')); setUpnpRetryError(null); }}
                       placeholder="Port"
                       className="w-20 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     />
@@ -203,6 +210,9 @@ export default function Peers() {
                     >
                       {upnpRetrying ? 'Retrying...' : altPort.trim() ? 'Try port' : 'Retry UPnP'}
                     </button>
+                    {upnpRetryError && (
+                      <span className="text-xs text-red-400">{upnpRetryError}</span>
+                    )}
                   </div>
                 </div>
               </div>

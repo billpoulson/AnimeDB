@@ -141,6 +141,17 @@ function stopRenewalLoop(): void {
   }
 }
 
+function resetClient(): void {
+  if (client) {
+    try {
+      client.close();
+    } catch {
+      // non-critical
+    }
+    client = null;
+  }
+}
+
 export function onRenew(callback: () => void): void {
   onRenewCallback = callback;
 }
@@ -168,6 +179,7 @@ export async function startUpnp(): Promise<void> {
 }
 
 export async function retryUpnp(publicPort: number): Promise<UpnpState> {
+  resetClient();
   try {
     await mapPort(publicPort);
     startRenewalLoop();
