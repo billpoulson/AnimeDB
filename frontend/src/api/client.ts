@@ -410,3 +410,20 @@ export async function getPlexServers(token: string): Promise<PlexServer[]> {
   const res = await api.get('/settings/plex/servers', { params: { plexToken: token } });
   return res.data.servers ?? [];
 }
+
+export interface PlexSection {
+  id: number;
+  title: string;
+  type: string;
+}
+
+export async function getPlexSections(
+  options?: { url?: string; token?: string; refresh?: boolean }
+): Promise<PlexSection[]> {
+  const params: Record<string, string> = {};
+  if (options?.url) params.plexUrl = options.url;
+  if (options?.token) params.plexToken = options.token;
+  if (options?.refresh) params.refresh = 'true';
+  const res = await api.get('/settings/plex/sections', { params });
+  return res.data.sections ?? [];
+}

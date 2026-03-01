@@ -1,13 +1,14 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Library, ScannedFolder, CreateLibraryRequest,
   getLibraries, createLibrary, updateLibrary, deleteLibrary, scanForFolders, getConfig,
   authChangePassword, getAuthStatus,
   checkForUpdate, applyUpdate, type UpdateCheckResult,
   getPlexSettings, savePlexSettings, testPlexConnection,
-  createPlexPin, pollPlexPin, getPlexServers,
+  createPlexPin, pollPlexPin, getPlexServers, getPlexSections,
   type PlexSettingsResponse,
   type PlexServer,
+  type PlexSection,
 } from '../api/client';
 
 const TYPE_LABELS: Record<string, string> = { movies: 'Movies', tv: 'TV', other: 'Other' };
@@ -21,6 +22,7 @@ export default function Settings() {
 
   const [form, setForm] = useState<CreateLibraryRequest>({ name: '', path: '', type: 'other', plex_section_id: null });
   const [error, setError] = useState('');
+  const [plexSections, setPlexSections] = useState<PlexSection[]>([]);
 
   const refresh = async () => {
     const [libs, folders, cfg] = await Promise.all([getLibraries(), scanForFolders(), getConfig()]);
@@ -30,6 +32,14 @@ export default function Settings() {
   };
 
   useEffect(() => { refresh(); }, []);
+
+  useEffect(() => {
+    if (showAdd && plexConnected && plexSections.length === 0) {
+      getPlexSections()
+        .then(setPlexSections)
+        .catch(() => {});
+    }
+  }, [showAdd, plexConnected]);
 
   const resetForm = () => {
     setForm({ name: '', path: '', type: 'other', plex_section_id: null });
@@ -123,15 +133,27 @@ export default function Settings() {
               </div>
               {plexConnected && (
                 <div>
-                  <label className="block text-xs text-gray-500 mb-0.5">Plex Section ID (optional)</label>
-                  <input
-                    type="number"
-                    min="1"
+                  <label className="block text-xs text-gray-500 mb-0.5">Plex Section (optional)</label>
+                  <select
                     value={form.plex_section_id ?? ''}
                     onChange={(e) => setForm({ ...form, plex_section_id: e.target.value ? parseInt(e.target.value, 10) : null })}
-                    placeholder="Leave empty if not a Plex library"
-                    className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  />
+                    className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  >
+                    <option value="">None</option>
+                    {(() => {
+                      const filtered =
+                        form.type === 'movies'
+                          ? plexSections.filter((s) => s.type === 'movie')
+                          : form.type === 'tv'
+                            ? plexSections.filter((s) => s.type === 'show')
+                            : plexSections.filter((s) => s.type === 'movie' || s.type === 'show');
+                      return filtered.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.title}
+                        </option>
+                      ));
+                    })()}
+                  </select>
                 </div>
               )}
             </div>
@@ -175,7 +197,7 @@ export default function Settings() {
                         {lib.plex_section_id ? (
                           <span className="inline-flex items-center gap-1 text-xs text-green-400">
                             <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-                            Section {lib.plex_section_id}
+                            {plexSections.find((s) => s.id === lib.plex_section_id)?.title ?? `Section ${lib.plex_section_id}`}
                           </span>
                         ) : (
                           <span className="text-xs text-gray-600">--</span>
@@ -223,7 +245,7 @@ export default function Settings() {
         </section>
       )}
 
-      <PlexIntegration onConnectionChange={refresh} />
+      <PlexIntegration onConnectionChange={refresh} onSectionsChange={setPlexSections} />
       <UpdateCheck />
       <ChangePassword />
     </div>
@@ -232,7 +254,7 @@ export default function Settings() {
 
 type LinkStep = 'idle' | 'pin' | 'server-pick';
 
-function PlexIntegration({ onConnectionChange }: { onConnectionChange: () => void }) {
+function PlexIntegration({ onConnectionChange, onSectionsChange }: { onConnectionChange: () => void; onSectionsChange?: (sections: PlexSection[]) => void }) {
   const [settings, setSettings] = useState<PlexSettingsResponse | null>(null);
   const [url, setUrl] = useState('');
   const [token, setToken] = useState('');
@@ -255,6 +277,12 @@ function PlexIntegration({ onConnectionChange }: { onConnectionChange: () => voi
   const [linkErr, setLinkErr] = useState('');
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const [sections, setSections] = useState<PlexSection[]>([]);
+  const [sectionsLoading, setSectionsLoading] = useState(false);
+  const [sectionsError, setSectionsError] = useState<string | null>(null);
+
+  const configured = settings?.url && settings?.hasToken;
+
   const load = async () => {
     const s = await getPlexSettings();
     setSettings(s);
@@ -272,6 +300,50 @@ function PlexIntegration({ onConnectionChange }: { onConnectionChange: () => voi
       if (pollRef.current) clearInterval(pollRef.current);
     };
   }, []);
+
+  const SECTIONS_AUTO_FETCH_MS = 15 * 60 * 1000; // 15 minutes
+
+  const fetchSections = useCallback(async (refresh = false) => {
+    const hasUrl = !!url.trim();
+    const hasToken = settings?.hasToken || (tokenEdited && !!token);
+    if (!hasUrl || !hasToken) return;
+
+    setSectionsLoading(true);
+    setSectionsError(null);
+    try {
+      const opts: { url?: string; token?: string; refresh?: boolean } = refresh ? { refresh: true } : {};
+      if (tokenEdited && token) {
+        opts.url = url.trim();
+        opts.token = token;
+      }
+      const list = await getPlexSections(opts);
+      setSections(list);
+    } catch (err: any) {
+      setSectionsError(err.response?.data?.error || 'Failed to fetch sections');
+      setSections([]);
+    } finally {
+      setSectionsLoading(false);
+    }
+  }, [url, settings?.hasToken, tokenEdited, token]);
+
+  useEffect(() => {
+    if ((showManual || configured) && url.trim() && (settings?.hasToken || (tokenEdited && token))) {
+      fetchSections();
+    } else {
+      setSections([]);
+      setSectionsError(null);
+    }
+  }, [showManual, configured, url, settings?.hasToken, tokenEdited, token, fetchSections]);
+
+  useEffect(() => {
+    onSectionsChange?.(sections);
+  }, [sections, onSectionsChange]);
+
+  useEffect(() => {
+    if (!configured) return;
+    const interval = setInterval(() => fetchSections(), SECTIONS_AUTO_FETCH_MS);
+    return () => clearInterval(interval);
+  }, [configured, fetchSections]);
 
   const handleLinkWithPlex = async () => {
     setLinkErr('');
@@ -417,8 +489,6 @@ function PlexIntegration({ onConnectionChange }: { onConnectionChange: () => voi
       setSaving(false);
     }
   };
-
-  const configured = settings?.url && settings?.hasToken;
 
   return (
     <section>
@@ -567,26 +637,89 @@ function PlexIntegration({ onConnectionChange }: { onConnectionChange: () => voi
                     </button>
                   </div>
                 </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-0.5">Movies Section ID</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={sectionMovies}
-                    onChange={(e) => { setSectionMovies(parseInt(e.target.value, 10) || 1); setSaveMsg(''); }}
-                    className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  />
+                <div className="sm:col-span-2 flex flex-wrap items-end gap-2">
+                  <div className="flex-1 min-w-[140px]">
+                    <label className="block text-xs text-gray-500 mb-0.5">Movies Section</label>
+                    {sectionsLoading ? (
+                      <p className="text-xs text-gray-500 py-1.5">Loading...</p>
+                    ) : sectionsError ? (
+                      <input
+                        type="number"
+                        min="1"
+                        value={sectionMovies}
+                        onChange={(e) => { setSectionMovies(parseInt(e.target.value, 10) || 1); setSaveMsg(''); }}
+                        placeholder="Fallback: enter ID"
+                        className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                    ) : (
+                      <select
+                        value={sectionMovies}
+                        onChange={(e) => { setSectionMovies(parseInt(e.target.value, 10) || 1); setSaveMsg(''); }}
+                        className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      >
+                        {(() => {
+                          const movieSections = sections.filter((s) => s.type === 'movie');
+                          if (movieSections.length === 0) return <option value={sectionMovies}>No movie sections found</option>;
+                          const hasCurrent = movieSections.some((s) => s.id === sectionMovies);
+                          return (
+                            <>
+                              {!hasCurrent && <option value={sectionMovies}>Section {sectionMovies}</option>}
+                              {movieSections.map((s) => (
+                                <option key={s.id} value={s.id}>{s.title}</option>
+                              ))}
+                            </>
+                          );
+                        })()}
+                      </select>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-[140px]">
+                    <label className="block text-xs text-gray-500 mb-0.5">TV Section</label>
+                    {sectionsLoading ? (
+                      <p className="text-xs text-gray-500 py-1.5">Loading...</p>
+                    ) : sectionsError ? (
+                      <input
+                        type="number"
+                        min="1"
+                        value={sectionTv}
+                        onChange={(e) => { setSectionTv(parseInt(e.target.value, 10) || 2); setSaveMsg(''); }}
+                        placeholder="Fallback: enter ID"
+                        className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                    ) : (
+                      <select
+                        value={sectionTv}
+                        onChange={(e) => { setSectionTv(parseInt(e.target.value, 10) || 2); setSaveMsg(''); }}
+                        className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      >
+                        {(() => {
+                          const tvSections = sections.filter((s) => s.type === 'show');
+                          if (tvSections.length === 0) return <option value={sectionTv}>No TV sections found</option>;
+                          const hasCurrent = tvSections.some((s) => s.id === sectionTv);
+                          return (
+                            <>
+                              {!hasCurrent && <option value={sectionTv}>Section {sectionTv}</option>}
+                              {tvSections.map((s) => (
+                                <option key={s.id} value={s.id}>{s.title}</option>
+                              ))}
+                            </>
+                          );
+                        })()}
+                      </select>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => fetchSections(true)}
+                    disabled={sectionsLoading || !url.trim()}
+                    className="text-xs px-2 py-1.5 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors disabled:opacity-50"
+                  >
+                    {sectionsLoading ? 'Refreshing...' : 'Refresh sections'}
+                  </button>
                 </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-0.5">TV Section ID</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={sectionTv}
-                    onChange={(e) => { setSectionTv(parseInt(e.target.value, 10) || 2); setSaveMsg(''); }}
-                    className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  />
-                </div>
+                {sectionsError && (
+                  <p className="text-xs text-amber-500 sm:col-span-2">Using fallback: {sectionsError}</p>
+                )}
               </div>
             )}
 

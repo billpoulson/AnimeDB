@@ -6,6 +6,7 @@ All notable changes to AnimeDB will be documented in this file.
 
 ### Added
 
+- **Plex Section Picker** — Fetches library sections from the Plex server and replaces manual section ID inputs with dropdowns. Includes "Refresh sections" button, 15-minute auto-refresh, and per-library section override in the library form.
 - **Plex OAuth flow** — Link with Plex via PIN authorization instead of manual token lookup. Use "Link with Plex" or "Re-link with Plex" in Settings.
 - **Upgrade test** — Validates upgrading from the previous version to the current version before release.
 
