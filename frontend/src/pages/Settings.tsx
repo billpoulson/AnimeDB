@@ -19,10 +19,18 @@ export default function Settings() {
   const [plexConnected, setPlexConnected] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [authRequired, setAuthRequired] = useState(false);
 
   const [form, setForm] = useState<CreateLibraryRequest>({ name: '', path: '', type: 'other', plex_section_id: null });
   const [error, setError] = useState('');
   const [plexSections, setPlexSections] = useState<PlexSection[]>([]);
+
+  const [hash, setHash] = useState(() => window.location.hash.slice(1) || 'libraries');
+  useEffect(() => {
+    const onHashChange = () => setHash(window.location.hash.slice(1) || 'libraries');
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
 
   const refresh = async () => {
     const [libs, folders, cfg] = await Promise.all([getLibraries(), scanForFolders(), getConfig()]);
@@ -32,6 +40,10 @@ export default function Settings() {
   };
 
   useEffect(() => { refresh(); }, []);
+
+  useEffect(() => {
+    getAuthStatus().then((s) => setAuthRequired(s.authRequired)).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (showAdd && plexConnected && plexSections.length === 0) {
@@ -84,11 +96,26 @@ export default function Settings() {
     setForm({ name: folder.name, path: folder.path, type: folder.suggested_type, plex_section_id: null });
   };
 
+  const navLinkClass = (section: string) =>
+    `block px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+      hash === section ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800'
+    }`;
+
   return (
-    <div className="space-y-8">
-      <section>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">Libraries</h2>
+    <div className="flex flex-col md:flex-row gap-6 md:gap-8">
+      <aside className="w-full md:w-48 shrink-0">
+        <nav className="flex md:flex-col gap-1 overflow-x-auto pb-2 md:pb-0 md:overflow-visible">
+          <a href="#libraries" className={navLinkClass('libraries')}>Libraries</a>
+          <a href="#plex" className={navLinkClass('plex')}>Plex</a>
+          <a href="#updates" className={navLinkClass('updates')}>Updates</a>
+          {authRequired && <a href="#security" className={navLinkClass('security')}>Security</a>}
+        </nav>
+      </aside>
+      <div className="flex-1 min-w-0 space-y-8">
+        <div id="libraries" className="scroll-mt-24">
+          <section>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">Libraries</h2>
           <button
             onClick={() => { resetForm(); setShowAdd(true); }}
             className="text-sm px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors"
@@ -220,34 +247,42 @@ export default function Settings() {
             </table>
           </div>
         )}
-      </section>
+          </section>
 
-      {scanned.length > 0 && (
-        <section>
-          <h2 className="text-lg font-semibold mb-4">Detected Folders</h2>
-          <p className="text-sm text-gray-500 mb-3">These folders exist under the media root but aren't registered as libraries.</p>
-          <div className="space-y-2">
-            {scanned.map((f) => (
-              <div key={f.path} className="flex items-center justify-between bg-gray-900 border border-gray-800 rounded-lg px-4 py-3">
-                <div>
-                  <p className="text-sm font-medium">{f.name}</p>
-                  <p className="text-xs text-gray-500">{f.path} &middot; detected as <span className="text-gray-400">{TYPE_LABELS[f.suggested_type]}</span></p>
-                </div>
-                <button
-                  onClick={() => handleAdopt(f)}
-                  className="text-xs px-3 py-1.5 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors"
-                >
-                  Add as library
-                </button>
+          {scanned.length > 0 && (
+            <section className="mt-8">
+              <h2 className="text-lg font-semibold mb-4">Detected Folders</h2>
+              <p className="text-sm text-gray-500 mb-3">These folders exist under the media root but aren't registered as libraries.</p>
+              <div className="space-y-2">
+                {scanned.map((f) => (
+                  <div key={f.path} className="flex items-center justify-between bg-gray-900 border border-gray-800 rounded-lg px-4 py-3">
+                    <div>
+                      <p className="text-sm font-medium">{f.name}</p>
+                      <p className="text-xs text-gray-500">{f.path} &middot; detected as <span className="text-gray-400">{TYPE_LABELS[f.suggested_type]}</span></p>
+                    </div>
+                    <button
+                      onClick={() => handleAdopt(f)}
+                      className="text-xs px-3 py-1.5 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors"
+                    >
+                      Add as library
+                    </button>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </section>
-      )}
+            </section>
+          )}
+        </div>
 
-      <PlexIntegration onConnectionChange={refresh} onSectionsChange={setPlexSections} />
-      <UpdateCheck />
-      <ChangePassword />
+        <div id="plex" className="scroll-mt-24">
+          <PlexIntegration onConnectionChange={refresh} onSectionsChange={setPlexSections} />
+        </div>
+        <div id="updates" className="scroll-mt-24">
+          <UpdateCheck />
+        </div>
+        <div id="security" className="scroll-mt-24">
+          <ChangePassword />
+        </div>
+      </div>
     </div>
   );
 }
