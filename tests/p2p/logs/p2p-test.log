@@ -1,7 +1,7 @@
 
 ========================================
   AnimeDB P2P Integration Test
-  Fri Feb 27 16:28:52 UTC 2026
+  Sun Mar  1 02:17:22 UTC 2026
 ========================================
 
 [1] Waiting for nodes...
@@ -12,48 +12,51 @@
 [2] Verifying instance identity...
 
 ──────────────────────────────────────
-REQUEST #1  16:28:52
+REQUEST #1  02:17:22
 GET http://nodea:3000/api/networking
 RESPONSE: HTTP 200
 {
-  "instanceId": "ab457844-d166-4a7d-ad83-947ed6a80fd0",
+  "instanceId": "a793cc16-a57d-4070-878d-5f75ebaaeb53",
   "instanceName": "NodeA",
   "externalUrl": "http://nodea:3000",
   "upnp": {
     "active": false,
     "externalIp": null,
+    "externalPort": null,
     "error": null
   }
 }
 ──────────────────────────────────────
 
 ──────────────────────────────────────
-REQUEST #1  16:28:52
+REQUEST #1  02:17:22
 GET http://nodeb:3000/api/networking
 RESPONSE: HTTP 200
 {
-  "instanceId": "6babcd1d-ac5e-4892-b242-538d21164eaa",
+  "instanceId": "653040fd-dec6-45f0-bcce-7312d7db4313",
   "instanceName": "NodeB",
   "externalUrl": "http://nodeb:3000",
   "upnp": {
     "active": false,
     "externalIp": null,
+    "externalPort": null,
     "error": null
   }
 }
 ──────────────────────────────────────
 
 ──────────────────────────────────────
-REQUEST #1  16:28:52
+REQUEST #1  02:17:22
 GET http://nodec:3000/api/networking
 RESPONSE: HTTP 200
 {
-  "instanceId": "29902e36-ca21-4551-aa5b-d68fed5a37b6",
+  "instanceId": "b0e95c28-3c1a-49f1-a262-82672e24ff14",
   "instanceName": "NodeC",
   "externalUrl": "http://nodec:3000",
   "upnp": {
     "active": false,
     "externalIp": null,
+    "externalPort": null,
     "error": null
   }
 }
@@ -72,42 +75,44 @@ RESPONSE: HTTP 200
 [3] Creating API keys...
 
 ──────────────────────────────────────
-REQUEST #1  16:28:52
+REQUEST #1  02:17:23
 POST http://nodea:3000/api/keys
   Header: Content-Type: application/json
   Body: {"label":"test-key-for-B"}
 RESPONSE: HTTP 201
 {
-  "id": "6fab7824-de24-4275-a5a3-3e151ac571bf",
+  "id": "b92222b6-6aeb-4880-907e-6791318580c3",
   "label": "test-key-for-B",
-  "key": "adb_b3bb14a13b48189e7233d2712661ef758484984a70b31e7c6dc092291644f4a8"
+  "key": "adb_c4ae9dc5137b6a7725dea770ad7102e7b55b054be3d10ddb4eefae75ca64109d",
+  "connectionString": "adb-connect:eyJ1cmwiOiJodHRwOi8vbm9kZWE6MzAwMCIsIm5hbWUiOiJOb2RlQSIsImtleSI6ImFkYl9jNGFlOWRjNTEzN2I2YTc3MjVkZWE3NzBhZDcxMDJlN2I1NWIwNTRiZTNkMTBkZGI0ZWVmYWU3NWNhNjQxMDlkIn0="
 }
 ──────────────────────────────────────
   PASS: NodeA key generated
 
 ──────────────────────────────────────
-REQUEST #1  16:28:52
+REQUEST #1  02:17:23
 POST http://nodeb:3000/api/keys
   Header: Content-Type: application/json
   Body: {"label":"test-key-for-A"}
 RESPONSE: HTTP 201
 {
-  "id": "660dbd66-76b1-4cba-9271-51354b43d40b",
+  "id": "0a5fc520-8b07-46fa-8ef5-9477b13a4d5c",
   "label": "test-key-for-A",
-  "key": "adb_a7aa9b72102ed60eed73ee9831f0b5a038a6a5af392bcc081f72cde0e92cec12"
+  "key": "adb_bbee51b7e3b5025d33bb92ea5c26c953b71ed66788979ea5bf757894e46df5fe",
+  "connectionString": "adb-connect:eyJ1cmwiOiJodHRwOi8vbm9kZWI6MzAwMCIsIm5hbWUiOiJOb2RlQiIsImtleSI6ImFkYl9iYmVlNTFiN2UzYjUwMjVkMzNiYjkyZWE1YzI2Yzk1M2I3MWVkNjY3ODg5NzllYTViZjc1Nzg5NGU0NmRmNWZlIn0="
 }
 ──────────────────────────────────────
   PASS: NodeB key generated
 
 ──────────────────────────────────────
-REQUEST #1  16:28:52
+REQUEST #1  02:17:23
 GET http://nodea:3000/api/keys
 RESPONSE: HTTP 200
 [
   {
-    "id": "6fab7824-de24-4275-a5a3-3e151ac571bf",
+    "id": "b92222b6-6aeb-4880-907e-6791318580c3",
     "label": "test-key-for-B",
-    "created_at": "2026-02-27 16:28:52"
+    "created_at": "2026-03-01 02:17:23"
   }
 ]
 ──────────────────────────────────────
@@ -117,7 +122,7 @@ RESPONSE: HTTP 200
 [4] Testing federation auth...
 
 ──────────────────────────────────────
-REQUEST #1  16:28:52
+REQUEST #1  02:17:23
 GET http://nodea:3000/api/federation/library
 RESPONSE: HTTP 401
 {
@@ -127,7 +132,7 @@ RESPONSE: HTTP 401
   PASS: No auth returns 401
 
 ──────────────────────────────────────
-REQUEST #1  16:28:52
+REQUEST #1  02:17:23
 GET http://nodea:3000/api/federation/library
   Header: Authorization: Bearer bad_key
 RESPONSE: HTTP 401
@@ -138,12 +143,12 @@ RESPONSE: HTTP 401
   PASS: Bad key returns 401
 
 ──────────────────────────────────────
-REQUEST #1  16:28:52
+REQUEST #1  02:17:23
 GET http://nodea:3000/api/federation/library
-  Header: Authorization: Bearer adb_b3bb14a13b48189e7233d2712661ef758484984a70b31e7c6dc092291644f4a8
+  Header: Authorization: Bearer adb_c4ae9dc5137b6a7725dea770ad7102e7b55b054be3d10ddb4eefae75ca64109d
 RESPONSE: HTTP 200
 {
-  "instanceId": "ab457844-d166-4a7d-ad83-947ed6a80fd0",
+  "instanceId": "a793cc16-a57d-4070-878d-5f75ebaaeb53",
   "instanceName": "NodeA",
   "items": []
 }
@@ -153,12 +158,12 @@ RESPONSE: HTTP 200
 [5] Checking federation library response...
 
 ──────────────────────────────────────
-REQUEST #1  16:28:53
+REQUEST #1  02:17:23
 GET http://nodea:3000/api/federation/library
-  Header: Authorization: Bearer adb_b3bb14a13b48189e7233d2712661ef758484984a70b31e7c6dc092291644f4a8
+  Header: Authorization: Bearer adb_c4ae9dc5137b6a7725dea770ad7102e7b55b054be3d10ddb4eefae75ca64109d
 RESPONSE: HTTP 200
 {
-  "instanceId": "ab457844-d166-4a7d-ad83-947ed6a80fd0",
+  "instanceId": "a793cc16-a57d-4070-878d-5f75ebaaeb53",
   "instanceName": "NodeA",
   "items": []
 }
@@ -170,32 +175,32 @@ RESPONSE: HTTP 200
 [6] Adding peers...
 
 ──────────────────────────────────────
-REQUEST #1  16:28:53
+REQUEST #1  02:17:23
 POST http://nodeb:3000/api/peers
   Header: Content-Type: application/json
-  Body: {"name":"NodeA","url":"http://nodea:3000","api_key":"adb_b3bb14a13b48189e7233d2712661ef758484984a70b31e7c6dc092291644f4a8"}
+  Body: {"name":"NodeA","url":"http://nodea:3000","api_key":"adb_c4ae9dc5137b6a7725dea770ad7102e7b55b054be3d10ddb4eefae75ca64109d"}
 RESPONSE: HTTP 201
 {
-  "id": "41849f29-b051-4570-a8b8-9572355f8183",
+  "id": "65d9354d-40da-4819-bb6d-bf0d18a2e026",
   "name": "NodeA",
   "url": "http://nodea:3000",
-  "instance_id": "ab457844-d166-4a7d-ad83-947ed6a80fd0"
+  "instance_id": "a793cc16-a57d-4070-878d-5f75ebaaeb53"
 }
 ──────────────────────────────────────
   PASS: Peer A added on B
   PASS: Peer stores NodeA's instance ID
 
 ──────────────────────────────────────
-REQUEST #1  16:28:53
+REQUEST #1  02:17:24
 POST http://nodea:3000/api/peers
   Header: Content-Type: application/json
-  Body: {"name":"NodeB","url":"http://nodeb:3000","api_key":"adb_a7aa9b72102ed60eed73ee9831f0b5a038a6a5af392bcc081f72cde0e92cec12"}
+  Body: {"name":"NodeB","url":"http://nodeb:3000","api_key":"adb_bbee51b7e3b5025d33bb92ea5c26c953b71ed66788979ea5bf757894e46df5fe"}
 RESPONSE: HTTP 201
 {
-  "id": "a21677a8-a242-435a-b9a3-71f9b44d0e78",
+  "id": "64d3cc8e-9efa-4457-8365-f5602c110b91",
   "name": "NodeB",
   "url": "http://nodeb:3000",
-  "instance_id": "6babcd1d-ac5e-4892-b242-538d21164eaa"
+  "instance_id": "653040fd-dec6-45f0-bcce-7312d7db4313"
 }
 ──────────────────────────────────────
   PASS: Peer B added on A
@@ -204,11 +209,11 @@ RESPONSE: HTTP 201
 [7] Browsing peer library...
 
 ──────────────────────────────────────
-REQUEST #1  16:28:53
-GET http://nodeb:3000/api/peers/41849f29-b051-4570-a8b8-9572355f8183/library
+REQUEST #1  02:17:24
+GET http://nodeb:3000/api/peers/65d9354d-40da-4819-bb6d-bf0d18a2e026/library
 RESPONSE: HTTP 200
 {
-  "instanceId": "ab457844-d166-4a7d-ad83-947ed6a80fd0",
+  "instanceId": "a793cc16-a57d-4070-878d-5f75ebaaeb53",
   "instanceName": "NodeA",
   "items": []
 }
@@ -219,17 +224,19 @@ RESPONSE: HTTP 200
 [8] Verifying peer listings...
 
 ──────────────────────────────────────
-REQUEST #1  16:28:53
+REQUEST #1  02:17:24
 GET http://nodeb:3000/api/peers
 RESPONSE: HTTP 200
 [
   {
-    "id": "41849f29-b051-4570-a8b8-9572355f8183",
+    "id": "65d9354d-40da-4819-bb6d-bf0d18a2e026",
     "name": "NodeA",
     "url": "http://nodea:3000",
-    "instance_id": "ab457844-d166-4a7d-ad83-947ed6a80fd0",
-    "last_seen": "2026-02-27 16:28:53",
-    "created_at": "2026-02-27 16:28:53"
+    "instance_id": "a793cc16-a57d-4070-878d-5f75ebaaeb53",
+    "last_seen": "2026-03-01 02:17:23",
+    "auto_replicate": 0,
+    "sync_library_id": null,
+    "created_at": "2026-03-01 02:17:23"
   }
 ]
 ──────────────────────────────────────
@@ -238,14 +245,74 @@ RESPONSE: HTTP 200
   PASS: Peer has last_seen
   PASS: Peer listing hides api_key
 
+[8b] Testing auto-sync PATCH...
+
+──────────────────────────────────────
+REQUEST #1  02:17:24
+PATCH http://nodeb:3000/api/peers/65d9354d-40da-4819-bb6d-bf0d18a2e026
+  Header: Content-Type: application/json
+  Body: {"auto_replicate":true}
+RESPONSE: HTTP 200
+{
+  "id": "65d9354d-40da-4819-bb6d-bf0d18a2e026",
+  "name": "NodeA",
+  "url": "http://nodea:3000",
+  "instance_id": "a793cc16-a57d-4070-878d-5f75ebaaeb53",
+  "last_seen": "2026-03-01 02:17:23",
+  "auto_replicate": 1,
+  "sync_library_id": null,
+  "created_at": "2026-03-01 02:17:23"
+}
+──────────────────────────────────────
+  PASS: PATCH enables auto_replicate
+  PASS: sync_library_id is null when not set
+
+──────────────────────────────────────
+REQUEST #1  02:17:24
+GET http://nodeb:3000/api/peers
+RESPONSE: HTTP 200
+[
+  {
+    "id": "65d9354d-40da-4819-bb6d-bf0d18a2e026",
+    "name": "NodeA",
+    "url": "http://nodea:3000",
+    "instance_id": "a793cc16-a57d-4070-878d-5f75ebaaeb53",
+    "last_seen": "2026-03-01 02:17:23",
+    "auto_replicate": 1,
+    "sync_library_id": null,
+    "created_at": "2026-03-01 02:17:23"
+  }
+]
+──────────────────────────────────────
+  PASS: GET peers returns auto_replicate
+
+──────────────────────────────────────
+REQUEST #1  02:17:24
+PATCH http://nodeb:3000/api/peers/65d9354d-40da-4819-bb6d-bf0d18a2e026
+  Header: Content-Type: application/json
+  Body: {"auto_replicate":false}
+RESPONSE: HTTP 200
+{
+  "id": "65d9354d-40da-4819-bb6d-bf0d18a2e026",
+  "name": "NodeA",
+  "url": "http://nodea:3000",
+  "instance_id": "a793cc16-a57d-4070-878d-5f75ebaaeb53",
+  "last_seen": "2026-03-01 02:17:23",
+  "auto_replicate": 0,
+  "sync_library_id": null,
+  "created_at": "2026-03-01 02:17:23"
+}
+──────────────────────────────────────
+  PASS: PATCH disables auto_replicate
+
 [9] Testing announce...
 
 ──────────────────────────────────────
-REQUEST #1  16:28:53
+REQUEST #1  02:17:24
 POST http://nodeb:3000/api/federation/announce
-  Header: Authorization: Bearer adb_a7aa9b72102ed60eed73ee9831f0b5a038a6a5af392bcc081f72cde0e92cec12
+  Header: Authorization: Bearer adb_bbee51b7e3b5025d33bb92ea5c26c953b71ed66788979ea5bf757894e46df5fe
   Header: Content-Type: application/json
-  Body: {"instanceId":"ab457844-d166-4a7d-ad83-947ed6a80fd0","url":"http://nodea-new:9999"}
+  Body: {"instanceId":"a793cc16-a57d-4070-878d-5f75ebaaeb53","url":"http://nodea-new:9999"}
 RESPONSE: HTTP 200
 {
   "updated": true
@@ -254,28 +321,30 @@ RESPONSE: HTTP 200
   PASS: Announce updates peer URL
 
 ──────────────────────────────────────
-REQUEST #1  16:28:53
+REQUEST #1  02:17:25
 GET http://nodeb:3000/api/peers
 RESPONSE: HTTP 200
 [
   {
-    "id": "41849f29-b051-4570-a8b8-9572355f8183",
+    "id": "65d9354d-40da-4819-bb6d-bf0d18a2e026",
     "name": "NodeA",
     "url": "http://nodea-new:9999",
-    "instance_id": "ab457844-d166-4a7d-ad83-947ed6a80fd0",
-    "last_seen": "2026-02-27 16:28:53",
-    "created_at": "2026-02-27 16:28:53"
+    "instance_id": "a793cc16-a57d-4070-878d-5f75ebaaeb53",
+    "last_seen": "2026-03-01 02:17:24",
+    "auto_replicate": 0,
+    "sync_library_id": null,
+    "created_at": "2026-03-01 02:17:23"
   }
 ]
 ──────────────────────────────────────
   PASS: Peer URL updated after announce
 
 ──────────────────────────────────────
-REQUEST #1  16:28:53
+REQUEST #1  02:17:25
 POST http://nodeb:3000/api/federation/announce
-  Header: Authorization: Bearer adb_a7aa9b72102ed60eed73ee9831f0b5a038a6a5af392bcc081f72cde0e92cec12
+  Header: Authorization: Bearer adb_bbee51b7e3b5025d33bb92ea5c26c953b71ed66788979ea5bf757894e46df5fe
   Header: Content-Type: application/json
-  Body: {"instanceId":"ab457844-d166-4a7d-ad83-947ed6a80fd0","url":"http://nodea:3000"}
+  Body: {"instanceId":"a793cc16-a57d-4070-878d-5f75ebaaeb53","url":"http://nodea:3000"}
 RESPONSE: HTTP 200
 {
   "updated": true
@@ -283,17 +352,19 @@ RESPONSE: HTTP 200
 ──────────────────────────────────────
 
 ──────────────────────────────────────
-REQUEST #2  16:28:54
+REQUEST #2  02:17:25
 GET http://nodeb:3000/api/peers
 RESPONSE: HTTP 200
 [
   {
-    "id": "41849f29-b051-4570-a8b8-9572355f8183",
+    "id": "65d9354d-40da-4819-bb6d-bf0d18a2e026",
     "name": "NodeA",
     "url": "http://nodea:3000",
-    "instance_id": "ab457844-d166-4a7d-ad83-947ed6a80fd0",
-    "last_seen": "2026-02-27 16:28:53",
-    "created_at": "2026-02-27 16:28:53"
+    "instance_id": "a793cc16-a57d-4070-878d-5f75ebaaeb53",
+    "last_seen": "2026-03-01 02:17:25",
+    "auto_replicate": 0,
+    "sync_library_id": null,
+    "created_at": "2026-03-01 02:17:23"
   }
 ]
 ──────────────────────────────────────
@@ -302,15 +373,15 @@ RESPONSE: HTTP 200
 [10] Testing resolve...
 
 ──────────────────────────────────────
-REQUEST #2  16:28:54
-GET http://nodea:3000/api/federation/resolve/6babcd1d-ac5e-4892-b242-538d21164eaa
-  Header: Authorization: Bearer adb_b3bb14a13b48189e7233d2712661ef758484984a70b31e7c6dc092291644f4a8
+REQUEST #2  02:17:25
+GET http://nodea:3000/api/federation/resolve/653040fd-dec6-45f0-bcce-7312d7db4313
+  Header: Authorization: Bearer adb_c4ae9dc5137b6a7725dea770ad7102e7b55b054be3d10ddb4eefae75ca64109d
 RESPONSE: HTTP 200
 {
-  "instanceId": "6babcd1d-ac5e-4892-b242-538d21164eaa",
+  "instanceId": "653040fd-dec6-45f0-bcce-7312d7db4313",
   "name": "NodeB",
   "url": "http://nodeb:3000",
-  "lastSeen": "2026-02-27 16:28:53"
+  "lastSeen": "2026-03-01 02:17:24"
 }
 ──────────────────────────────────────
   PASS: Resolve returns NodeB's URL
@@ -319,16 +390,17 @@ RESPONSE: HTTP 200
 [11] Testing networking endpoint...
 
 ──────────────────────────────────────
-REQUEST #2  16:28:54
+REQUEST #2  02:17:25
 GET http://nodea:3000/api/networking
 RESPONSE: HTTP 200
 {
-  "instanceId": "ab457844-d166-4a7d-ad83-947ed6a80fd0",
+  "instanceId": "a793cc16-a57d-4070-878d-5f75ebaaeb53",
   "instanceName": "NodeA",
   "externalUrl": "http://nodea:3000",
   "upnp": {
     "active": false,
     "externalIp": null,
+    "externalPort": null,
     "error": null
   }
 }
@@ -339,7 +411,7 @@ RESPONSE: HTTP 200
 [12] Testing external URL override...
 
 ──────────────────────────────────────
-REQUEST #2  16:28:54
+REQUEST #2  02:17:25
 PUT http://nodea:3000/api/networking/external-url
   Header: Content-Type: application/json
   Body: {"url":"http://custom.example.com:3000"}
@@ -351,7 +423,7 @@ RESPONSE: HTTP 200
   PASS: External URL set
 
 ──────────────────────────────────────
-REQUEST #2  16:28:54
+REQUEST #2  02:17:25
 PUT http://nodea:3000/api/networking/external-url
   Header: Content-Type: application/json
   Body: {"url":null}
@@ -363,7 +435,7 @@ RESPONSE: HTTP 200
   PASS: External URL cleared
 
 ──────────────────────────────────────
-REQUEST #2  16:28:54
+REQUEST #2  02:17:25
 PUT http://nodea:3000/api/networking/external-url
   Header: Content-Type: application/json
   Body: {"url":"http://nodea:3000"}
@@ -376,15 +448,15 @@ RESPONSE: HTTP 200
 [13] Testing key revocation...
 
 ──────────────────────────────────────
-REQUEST #3  16:28:54
-DELETE http://nodea:3000/api/keys/6fab7824-de24-4275-a5a3-3e151ac571bf
+REQUEST #3  02:17:25
+DELETE http://nodea:3000/api/keys/b92222b6-6aeb-4880-907e-6791318580c3
 RESPONSE: HTTP 204
 ──────────────────────────────────────
 
 ──────────────────────────────────────
-REQUEST #4  16:28:54
+REQUEST #4  02:17:25
 GET http://nodea:3000/api/federation/library
-  Header: Authorization: Bearer adb_b3bb14a13b48189e7233d2712661ef758484984a70b31e7c6dc092291644f4a8
+  Header: Authorization: Bearer adb_c4ae9dc5137b6a7725dea770ad7102e7b55b054be3d10ddb4eefae75ca64109d
 RESPONSE: HTTP 401
 {
   "error": "Invalid API key"
@@ -393,15 +465,16 @@ RESPONSE: HTTP 401
   PASS: Revoked key returns 401
 
 ──────────────────────────────────────
-REQUEST #4  16:28:54
+REQUEST #4  02:17:26
 POST http://nodea:3000/api/keys
   Header: Content-Type: application/json
   Body: {"label":"replacement-key"}
 RESPONSE: HTTP 201
 {
-  "id": "0e14a535-7256-43e1-86e8-d3ec9e003761",
+  "id": "e2106ecc-f55d-4138-8f46-431f2d99bf53",
   "label": "replacement-key",
-  "key": "adb_879d1f786ae971d47d56e5a32ca9e20e422a29439457ae534b14b867acd2d300"
+  "key": "adb_6f4dff40aa311ce698a6c23063215c4c98b1bdf86d471f849ea34bbab89a3a98",
+  "connectionString": "adb-connect:eyJ1cmwiOiJodHRwOi8vbm9kZWE6MzAwMCIsIm5hbWUiOiJOb2RlQSIsImtleSI6ImFkYl82ZjRkZmY0MGFhMzExY2U2OThhNmMyMzA2MzIxNWM0Yzk4YjFiZGY4NmQ0NzFmODQ5ZWEzNGJiYWI4OWEzYTk4In0="
 }
 ──────────────────────────────────────
   PASS: Replacement key created
@@ -409,14 +482,14 @@ RESPONSE: HTTP 201
 [14] Testing peer deletion...
 
 ──────────────────────────────────────
-REQUEST #4  16:28:54
-DELETE http://nodeb:3000/api/peers/41849f29-b051-4570-a8b8-9572355f8183
+REQUEST #4  02:17:26
+DELETE http://nodeb:3000/api/peers/65d9354d-40da-4819-bb6d-bf0d18a2e026
 RESPONSE: HTTP 204
 ──────────────────────────────────────
   PASS: Peer deleted returns 204
 
 ──────────────────────────────────────
-REQUEST #4  16:28:54
+REQUEST #4  02:17:26
 GET http://nodeb:3000/api/peers
 RESPONSE: HTTP 200
 []
@@ -426,47 +499,50 @@ RESPONSE: HTTP 200
 [15] Setting up 3-node mesh...
 
 ──────────────────────────────────────
-REQUEST #4  16:28:54
-DELETE http://nodea:3000/api/peers/a21677a8-a242-435a-b9a3-71f9b44d0e78
+REQUEST #4  02:17:26
+DELETE http://nodea:3000/api/peers/64d3cc8e-9efa-4457-8365-f5602c110b91
 RESPONSE: HTTP 204
 ──────────────────────────────────────
 
 ──────────────────────────────────────
-REQUEST #5  16:28:54
+REQUEST #5  02:17:26
 POST http://nodea:3000/api/keys
   Header: Content-Type: application/json
   Body: {"label":"mesh-key"}
 RESPONSE: HTTP 201
 {
-  "id": "b51f3dd9-96d8-4dcc-aa73-9cd51f3eb97d",
+  "id": "deeacc8d-59e6-4a7a-a55c-84826fa303df",
   "label": "mesh-key",
-  "key": "adb_8d6f9651fbf5385b8473fcddc95458dd14799ea028c80daf2f484a600e515ab9"
+  "key": "adb_5273adc4c6376f396b32ad5f43720ee4110311e845a297755e474f125459fb10",
+  "connectionString": "adb-connect:eyJ1cmwiOiJodHRwOi8vbm9kZWE6MzAwMCIsIm5hbWUiOiJOb2RlQSIsImtleSI6ImFkYl81MjczYWRjNGM2Mzc2ZjM5NmIzMmFkNWY0MzcyMGVlNDExMDMxMWU4NDVhMjk3NzU1ZTQ3NGYxMjU0NTlmYjEwIn0="
 }
 ──────────────────────────────────────
 
 ──────────────────────────────────────
-REQUEST #5  16:28:54
+REQUEST #5  02:17:26
 POST http://nodeb:3000/api/keys
   Header: Content-Type: application/json
   Body: {"label":"mesh-key"}
 RESPONSE: HTTP 201
 {
-  "id": "f347aae9-066e-4a50-be06-77c66203e045",
+  "id": "1580f790-46d2-422d-b6ac-4120b64f4e30",
   "label": "mesh-key",
-  "key": "adb_cf3b4a6b2deef1cf6c026fcacfe02aea4e7915ef4028d38d499efcb8c233474d"
+  "key": "adb_c62350f9b820d52e04edad0d3f3a6bfebff0f544b1b33e54e2408e1f9e80964f",
+  "connectionString": "adb-connect:eyJ1cmwiOiJodHRwOi8vbm9kZWI6MzAwMCIsIm5hbWUiOiJOb2RlQiIsImtleSI6ImFkYl9jNjIzNTBmOWI4MjBkNTJlMDRlZGFkMGQzZjNhNmJmZWJmZjBmNTQ0YjFiMzNlNTRlMjQwOGUxZjllODA5NjRmIn0="
 }
 ──────────────────────────────────────
 
 ──────────────────────────────────────
-REQUEST #5  16:28:55
+REQUEST #5  02:17:26
 POST http://nodec:3000/api/keys
   Header: Content-Type: application/json
   Body: {"label":"mesh-key"}
 RESPONSE: HTTP 201
 {
-  "id": "f356c9f1-fe8c-4dd9-a1fc-86974caa4954",
+  "id": "a37c7eb4-5e96-4084-bf95-4068af87fbc8",
   "label": "mesh-key",
-  "key": "adb_71b79427fb53b20dd60f58626e326c5dea1997c1b463f8b7b014ce713b0abad6"
+  "key": "adb_e9c260ffe1a3a199d86891863920aeddd1ce669f2a1300b0f68b0b1f2f9f4eee",
+  "connectionString": "adb-connect:eyJ1cmwiOiJodHRwOi8vbm9kZWM6MzAwMCIsIm5hbWUiOiJOb2RlQyIsImtleSI6ImFkYl9lOWMyNjBmZmUxYTNhMTk5ZDg2ODkxODYzOTIwYWVkZGQxY2U2NjlmMmExMzAwYjBmNjhiMGIxZjJmOWY0ZWVlIn0="
 }
 ──────────────────────────────────────
   PASS: Mesh key A created
@@ -474,163 +550,175 @@ RESPONSE: HTTP 201
   PASS: Mesh key C created
 
 ──────────────────────────────────────
-REQUEST #5  16:28:55
+REQUEST #5  02:17:26
 POST http://nodea:3000/api/peers
   Header: Content-Type: application/json
-  Body: {"name":"NodeB","url":"http://nodeb:3000","api_key":"adb_cf3b4a6b2deef1cf6c026fcacfe02aea4e7915ef4028d38d499efcb8c233474d"}
+  Body: {"name":"NodeB","url":"http://nodeb:3000","api_key":"adb_c62350f9b820d52e04edad0d3f3a6bfebff0f544b1b33e54e2408e1f9e80964f"}
 RESPONSE: HTTP 201
 {
-  "id": "198822cf-8671-4a5e-87f6-8109f44ace69",
+  "id": "97693731-c57e-4051-8c6d-e9cfdb6e49fd",
   "name": "NodeB",
   "url": "http://nodeb:3000",
-  "instance_id": "6babcd1d-ac5e-4892-b242-538d21164eaa"
+  "instance_id": "653040fd-dec6-45f0-bcce-7312d7db4313"
 }
 ──────────────────────────────────────
 
 ──────────────────────────────────────
-REQUEST #5  16:28:55
+REQUEST #5  02:17:26
 POST http://nodea:3000/api/peers
   Header: Content-Type: application/json
-  Body: {"name":"NodeC","url":"http://nodec:3000","api_key":"adb_71b79427fb53b20dd60f58626e326c5dea1997c1b463f8b7b014ce713b0abad6"}
+  Body: {"name":"NodeC","url":"http://nodec:3000","api_key":"adb_e9c260ffe1a3a199d86891863920aeddd1ce669f2a1300b0f68b0b1f2f9f4eee"}
 RESPONSE: HTTP 201
 {
-  "id": "4e5b4bb4-00e4-4d96-9679-295246d3bae6",
+  "id": "a205d1d9-a84e-4c3a-9536-2925d4c8f261",
   "name": "NodeC",
   "url": "http://nodec:3000",
-  "instance_id": "29902e36-ca21-4551-aa5b-d68fed5a37b6"
+  "instance_id": "b0e95c28-3c1a-49f1-a262-82672e24ff14"
 }
 ──────────────────────────────────────
   PASS: A linked to B
   PASS: A linked to C
 
 ──────────────────────────────────────
-REQUEST #5  16:28:55
+REQUEST #5  02:17:26
 POST http://nodeb:3000/api/peers
   Header: Content-Type: application/json
-  Body: {"name":"NodeA","url":"http://nodea:3000","api_key":"adb_8d6f9651fbf5385b8473fcddc95458dd14799ea028c80daf2f484a600e515ab9"}
+  Body: {"name":"NodeA","url":"http://nodea:3000","api_key":"adb_5273adc4c6376f396b32ad5f43720ee4110311e845a297755e474f125459fb10"}
 RESPONSE: HTTP 201
 {
-  "id": "c82f9827-3d49-4ab0-b9e5-e40adcda27cc",
+  "id": "4f5eecda-6787-4ee7-8b25-cac64b9c67d3",
   "name": "NodeA",
   "url": "http://nodea:3000",
-  "instance_id": "ab457844-d166-4a7d-ad83-947ed6a80fd0"
+  "instance_id": "a793cc16-a57d-4070-878d-5f75ebaaeb53"
 }
 ──────────────────────────────────────
 
 ──────────────────────────────────────
-REQUEST #5  16:28:55
+REQUEST #5  02:17:27
 POST http://nodeb:3000/api/peers
   Header: Content-Type: application/json
-  Body: {"name":"NodeC","url":"http://nodec:3000","api_key":"adb_71b79427fb53b20dd60f58626e326c5dea1997c1b463f8b7b014ce713b0abad6"}
+  Body: {"name":"NodeC","url":"http://nodec:3000","api_key":"adb_e9c260ffe1a3a199d86891863920aeddd1ce669f2a1300b0f68b0b1f2f9f4eee"}
 RESPONSE: HTTP 201
 {
-  "id": "ab266467-d8d9-4877-98c7-2f21f789236e",
+  "id": "b6efc81b-2744-4dee-8c1e-bc307f910b57",
   "name": "NodeC",
   "url": "http://nodec:3000",
-  "instance_id": "29902e36-ca21-4551-aa5b-d68fed5a37b6"
+  "instance_id": "b0e95c28-3c1a-49f1-a262-82672e24ff14"
 }
 ──────────────────────────────────────
   PASS: B linked to A
   PASS: B linked to C
 
 ──────────────────────────────────────
-REQUEST #5  16:28:55
+REQUEST #5  02:17:27
 POST http://nodec:3000/api/peers
   Header: Content-Type: application/json
-  Body: {"name":"NodeA","url":"http://nodea:3000","api_key":"adb_8d6f9651fbf5385b8473fcddc95458dd14799ea028c80daf2f484a600e515ab9"}
+  Body: {"name":"NodeA","url":"http://nodea:3000","api_key":"adb_5273adc4c6376f396b32ad5f43720ee4110311e845a297755e474f125459fb10"}
 RESPONSE: HTTP 201
 {
-  "id": "36b01a08-0e0a-43fe-985d-2d7243eac2e8",
+  "id": "a9283a0b-7ad9-4381-9036-ea074fea924d",
   "name": "NodeA",
   "url": "http://nodea:3000",
-  "instance_id": "ab457844-d166-4a7d-ad83-947ed6a80fd0"
+  "instance_id": "a793cc16-a57d-4070-878d-5f75ebaaeb53"
 }
 ──────────────────────────────────────
 
 ──────────────────────────────────────
-REQUEST #5  16:28:55
+REQUEST #5  02:17:27
 POST http://nodec:3000/api/peers
   Header: Content-Type: application/json
-  Body: {"name":"NodeB","url":"http://nodeb:3000","api_key":"adb_cf3b4a6b2deef1cf6c026fcacfe02aea4e7915ef4028d38d499efcb8c233474d"}
+  Body: {"name":"NodeB","url":"http://nodeb:3000","api_key":"adb_c62350f9b820d52e04edad0d3f3a6bfebff0f544b1b33e54e2408e1f9e80964f"}
 RESPONSE: HTTP 201
 {
-  "id": "d7eef93b-1da8-4f72-b11f-7d20412bff1e",
+  "id": "c2f3ac66-03e1-4b4f-b463-abb9720400b3",
   "name": "NodeB",
   "url": "http://nodeb:3000",
-  "instance_id": "6babcd1d-ac5e-4892-b242-538d21164eaa"
+  "instance_id": "653040fd-dec6-45f0-bcce-7312d7db4313"
 }
 ──────────────────────────────────────
   PASS: C linked to A
   PASS: C linked to B
 
 ──────────────────────────────────────
-REQUEST #5  16:28:55
+REQUEST #5  02:17:27
 GET http://nodea:3000/api/peers
 RESPONSE: HTTP 200
 [
   {
-    "id": "198822cf-8671-4a5e-87f6-8109f44ace69",
+    "id": "97693731-c57e-4051-8c6d-e9cfdb6e49fd",
     "name": "NodeB",
     "url": "http://nodeb:3000",
-    "instance_id": "6babcd1d-ac5e-4892-b242-538d21164eaa",
-    "last_seen": "2026-02-27 16:28:55",
-    "created_at": "2026-02-27 16:28:55"
+    "instance_id": "653040fd-dec6-45f0-bcce-7312d7db4313",
+    "last_seen": "2026-03-01 02:17:26",
+    "auto_replicate": 0,
+    "sync_library_id": null,
+    "created_at": "2026-03-01 02:17:26"
   },
   {
-    "id": "4e5b4bb4-00e4-4d96-9679-295246d3bae6",
+    "id": "a205d1d9-a84e-4c3a-9536-2925d4c8f261",
     "name": "NodeC",
     "url": "http://nodec:3000",
-    "instance_id": "29902e36-ca21-4551-aa5b-d68fed5a37b6",
-    "last_seen": "2026-02-27 16:28:55",
-    "created_at": "2026-02-27 16:28:55"
+    "instance_id": "b0e95c28-3c1a-49f1-a262-82672e24ff14",
+    "last_seen": "2026-03-01 02:17:26",
+    "auto_replicate": 0,
+    "sync_library_id": null,
+    "created_at": "2026-03-01 02:17:26"
   }
 ]
 ──────────────────────────────────────
 
 ──────────────────────────────────────
-REQUEST #5  16:28:55
+REQUEST #5  02:17:27
 GET http://nodeb:3000/api/peers
 RESPONSE: HTTP 200
 [
   {
-    "id": "c82f9827-3d49-4ab0-b9e5-e40adcda27cc",
-    "name": "NodeA",
-    "url": "http://nodea:3000",
-    "instance_id": "ab457844-d166-4a7d-ad83-947ed6a80fd0",
-    "last_seen": "2026-02-27 16:28:55",
-    "created_at": "2026-02-27 16:28:55"
-  },
-  {
-    "id": "ab266467-d8d9-4877-98c7-2f21f789236e",
+    "id": "b6efc81b-2744-4dee-8c1e-bc307f910b57",
     "name": "NodeC",
     "url": "http://nodec:3000",
-    "instance_id": "29902e36-ca21-4551-aa5b-d68fed5a37b6",
-    "last_seen": "2026-02-27 16:28:55",
-    "created_at": "2026-02-27 16:28:55"
+    "instance_id": "b0e95c28-3c1a-49f1-a262-82672e24ff14",
+    "last_seen": "2026-03-01 02:17:27",
+    "auto_replicate": 0,
+    "sync_library_id": null,
+    "created_at": "2026-03-01 02:17:27"
+  },
+  {
+    "id": "4f5eecda-6787-4ee7-8b25-cac64b9c67d3",
+    "name": "NodeA",
+    "url": "http://nodea:3000",
+    "instance_id": "a793cc16-a57d-4070-878d-5f75ebaaeb53",
+    "last_seen": "2026-03-01 02:17:26",
+    "auto_replicate": 0,
+    "sync_library_id": null,
+    "created_at": "2026-03-01 02:17:26"
   }
 ]
 ──────────────────────────────────────
 
 ──────────────────────────────────────
-REQUEST #5  16:28:55
+REQUEST #5  02:17:27
 GET http://nodec:3000/api/peers
 RESPONSE: HTTP 200
 [
   {
-    "id": "36b01a08-0e0a-43fe-985d-2d7243eac2e8",
+    "id": "a9283a0b-7ad9-4381-9036-ea074fea924d",
     "name": "NodeA",
     "url": "http://nodea:3000",
-    "instance_id": "ab457844-d166-4a7d-ad83-947ed6a80fd0",
-    "last_seen": "2026-02-27 16:28:55",
-    "created_at": "2026-02-27 16:28:55"
+    "instance_id": "a793cc16-a57d-4070-878d-5f75ebaaeb53",
+    "last_seen": "2026-03-01 02:17:27",
+    "auto_replicate": 0,
+    "sync_library_id": null,
+    "created_at": "2026-03-01 02:17:27"
   },
   {
-    "id": "d7eef93b-1da8-4f72-b11f-7d20412bff1e",
+    "id": "c2f3ac66-03e1-4b4f-b463-abb9720400b3",
     "name": "NodeB",
     "url": "http://nodeb:3000",
-    "instance_id": "6babcd1d-ac5e-4892-b242-538d21164eaa",
-    "last_seen": "2026-02-27 16:28:55",
-    "created_at": "2026-02-27 16:28:55"
+    "instance_id": "653040fd-dec6-45f0-bcce-7312d7db4313",
+    "last_seen": "2026-03-01 02:17:27",
+    "auto_replicate": 0,
+    "sync_library_id": null,
+    "created_at": "2026-03-01 02:17:27"
   }
 ]
 ──────────────────────────────────────
@@ -639,11 +727,11 @@ RESPONSE: HTTP 200
   PASS: C has 2 peers
 
 ──────────────────────────────────────
-REQUEST #5  16:28:55
-GET http://nodea:3000/api/peers/4e5b4bb4-00e4-4d96-9679-295246d3bae6/library
+REQUEST #5  02:17:27
+GET http://nodea:3000/api/peers/a205d1d9-a84e-4c3a-9536-2925d4c8f261/library
 RESPONSE: HTTP 200
 {
-  "instanceId": "29902e36-ca21-4551-aa5b-d68fed5a37b6",
+  "instanceId": "b0e95c28-3c1a-49f1-a262-82672e24ff14",
   "instanceName": "NodeC",
   "items": []
 }
@@ -653,7 +741,7 @@ RESPONSE: HTTP 200
 [16] Simulating node offline + address change...
 
 ──────────────────────────────────────
-REQUEST #5  16:28:55
+REQUEST #5  02:17:27
 PUT http://nodec:3000/api/networking/external-url
   Header: Content-Type: application/json
   Body: {"url":"http://nodec-new:5000"}
@@ -664,57 +752,65 @@ RESPONSE: HTTP 200
 ──────────────────────────────────────
 
 ──────────────────────────────────────
-REQUEST #6  16:28:56
+REQUEST #6  02:17:28
 GET http://nodea:3000/api/peers
 RESPONSE: HTTP 200
 [
   {
-    "id": "198822cf-8671-4a5e-87f6-8109f44ace69",
+    "id": "97693731-c57e-4051-8c6d-e9cfdb6e49fd",
     "name": "NodeB",
     "url": "http://nodeb:3000",
-    "instance_id": "6babcd1d-ac5e-4892-b242-538d21164eaa",
-    "last_seen": "2026-02-27 16:28:55",
-    "created_at": "2026-02-27 16:28:55"
+    "instance_id": "653040fd-dec6-45f0-bcce-7312d7db4313",
+    "last_seen": "2026-03-01 02:17:26",
+    "auto_replicate": 0,
+    "sync_library_id": null,
+    "created_at": "2026-03-01 02:17:26"
   },
   {
-    "id": "4e5b4bb4-00e4-4d96-9679-295246d3bae6",
+    "id": "a205d1d9-a84e-4c3a-9536-2925d4c8f261",
     "name": "NodeC",
     "url": "http://nodec-new:5000",
-    "instance_id": "29902e36-ca21-4551-aa5b-d68fed5a37b6",
-    "last_seen": "2026-02-27 16:28:55",
-    "created_at": "2026-02-27 16:28:55"
+    "instance_id": "b0e95c28-3c1a-49f1-a262-82672e24ff14",
+    "last_seen": "2026-03-01 02:17:27",
+    "auto_replicate": 0,
+    "sync_library_id": null,
+    "created_at": "2026-03-01 02:17:26"
   }
 ]
 ──────────────────────────────────────
   PASS: A has C's new URL after announce
 
 ──────────────────────────────────────
-REQUEST #6  16:28:57
+REQUEST #6  02:17:28
 GET http://nodeb:3000/api/peers
 RESPONSE: HTTP 200
 [
   {
-    "id": "c82f9827-3d49-4ab0-b9e5-e40adcda27cc",
-    "name": "NodeA",
-    "url": "http://nodea:3000",
-    "instance_id": "ab457844-d166-4a7d-ad83-947ed6a80fd0",
-    "last_seen": "2026-02-27 16:28:55",
-    "created_at": "2026-02-27 16:28:55"
-  },
-  {
-    "id": "ab266467-d8d9-4877-98c7-2f21f789236e",
+    "id": "b6efc81b-2744-4dee-8c1e-bc307f910b57",
     "name": "NodeC",
     "url": "http://nodec-new:5000",
-    "instance_id": "29902e36-ca21-4551-aa5b-d68fed5a37b6",
-    "last_seen": "2026-02-27 16:28:55",
-    "created_at": "2026-02-27 16:28:55"
+    "instance_id": "b0e95c28-3c1a-49f1-a262-82672e24ff14",
+    "last_seen": "2026-03-01 02:17:27",
+    "auto_replicate": 0,
+    "sync_library_id": null,
+    "created_at": "2026-03-01 02:17:27"
+  },
+  {
+    "id": "4f5eecda-6787-4ee7-8b25-cac64b9c67d3",
+    "name": "NodeA",
+    "url": "http://nodea:3000",
+    "instance_id": "a793cc16-a57d-4070-878d-5f75ebaaeb53",
+    "last_seen": "2026-03-01 02:17:26",
+    "auto_replicate": 0,
+    "sync_library_id": null,
+    "created_at": "2026-03-01 02:17:26"
   }
 ]
 ──────────────────────────────────────
   PASS: B has C's new URL after announce
 
 ──────────────────────────────────────
-REQUEST #6  16:28:57
+REQUEST #6  02:17:28
 PUT http://nodec:3000/api/networking/external-url
   Header: Content-Type: application/json
   Body: {"url":"http://nodec-final:4000"}
@@ -725,57 +821,65 @@ RESPONSE: HTTP 200
 ──────────────────────────────────────
 
 ──────────────────────────────────────
-REQUEST #7  16:28:58
+REQUEST #7  02:17:30
 GET http://nodea:3000/api/peers
 RESPONSE: HTTP 200
 [
   {
-    "id": "198822cf-8671-4a5e-87f6-8109f44ace69",
+    "id": "97693731-c57e-4051-8c6d-e9cfdb6e49fd",
     "name": "NodeB",
     "url": "http://nodeb:3000",
-    "instance_id": "6babcd1d-ac5e-4892-b242-538d21164eaa",
-    "last_seen": "2026-02-27 16:28:55",
-    "created_at": "2026-02-27 16:28:55"
+    "instance_id": "653040fd-dec6-45f0-bcce-7312d7db4313",
+    "last_seen": "2026-03-01 02:17:26",
+    "auto_replicate": 0,
+    "sync_library_id": null,
+    "created_at": "2026-03-01 02:17:26"
   },
   {
-    "id": "4e5b4bb4-00e4-4d96-9679-295246d3bae6",
+    "id": "a205d1d9-a84e-4c3a-9536-2925d4c8f261",
     "name": "NodeC",
     "url": "http://nodec-final:4000",
-    "instance_id": "29902e36-ca21-4551-aa5b-d68fed5a37b6",
-    "last_seen": "2026-02-27 16:28:57",
-    "created_at": "2026-02-27 16:28:55"
+    "instance_id": "b0e95c28-3c1a-49f1-a262-82672e24ff14",
+    "last_seen": "2026-03-01 02:17:29",
+    "auto_replicate": 0,
+    "sync_library_id": null,
+    "created_at": "2026-03-01 02:17:26"
   }
 ]
 ──────────────────────────────────────
   PASS: A tracks C's final URL
 
 ──────────────────────────────────────
-REQUEST #7  16:28:58
+REQUEST #7  02:17:30
 GET http://nodeb:3000/api/peers
 RESPONSE: HTTP 200
 [
   {
-    "id": "c82f9827-3d49-4ab0-b9e5-e40adcda27cc",
-    "name": "NodeA",
-    "url": "http://nodea:3000",
-    "instance_id": "ab457844-d166-4a7d-ad83-947ed6a80fd0",
-    "last_seen": "2026-02-27 16:28:55",
-    "created_at": "2026-02-27 16:28:55"
-  },
-  {
-    "id": "ab266467-d8d9-4877-98c7-2f21f789236e",
+    "id": "b6efc81b-2744-4dee-8c1e-bc307f910b57",
     "name": "NodeC",
     "url": "http://nodec-final:4000",
-    "instance_id": "29902e36-ca21-4551-aa5b-d68fed5a37b6",
-    "last_seen": "2026-02-27 16:28:57",
-    "created_at": "2026-02-27 16:28:55"
+    "instance_id": "b0e95c28-3c1a-49f1-a262-82672e24ff14",
+    "last_seen": "2026-03-01 02:17:29",
+    "auto_replicate": 0,
+    "sync_library_id": null,
+    "created_at": "2026-03-01 02:17:27"
+  },
+  {
+    "id": "4f5eecda-6787-4ee7-8b25-cac64b9c67d3",
+    "name": "NodeA",
+    "url": "http://nodea:3000",
+    "instance_id": "a793cc16-a57d-4070-878d-5f75ebaaeb53",
+    "last_seen": "2026-03-01 02:17:26",
+    "auto_replicate": 0,
+    "sync_library_id": null,
+    "created_at": "2026-03-01 02:17:26"
   }
 ]
 ──────────────────────────────────────
   PASS: B tracks C's final URL
 
 ──────────────────────────────────────
-REQUEST #7  16:28:58
+REQUEST #7  02:17:30
 PUT http://nodec:3000/api/networking/external-url
   Header: Content-Type: application/json
   Body: {"url":"http://nodec:3000"}
@@ -786,25 +890,29 @@ RESPONSE: HTTP 200
 ──────────────────────────────────────
 
 ──────────────────────────────────────
-REQUEST #8  16:28:59
+REQUEST #8  02:17:31
 GET http://nodea:3000/api/peers
 RESPONSE: HTTP 200
 [
   {
-    "id": "198822cf-8671-4a5e-87f6-8109f44ace69",
+    "id": "97693731-c57e-4051-8c6d-e9cfdb6e49fd",
     "name": "NodeB",
     "url": "http://nodeb:3000",
-    "instance_id": "6babcd1d-ac5e-4892-b242-538d21164eaa",
-    "last_seen": "2026-02-27 16:28:55",
-    "created_at": "2026-02-27 16:28:55"
+    "instance_id": "653040fd-dec6-45f0-bcce-7312d7db4313",
+    "last_seen": "2026-03-01 02:17:26",
+    "auto_replicate": 0,
+    "sync_library_id": null,
+    "created_at": "2026-03-01 02:17:26"
   },
   {
-    "id": "4e5b4bb4-00e4-4d96-9679-295246d3bae6",
+    "id": "a205d1d9-a84e-4c3a-9536-2925d4c8f261",
     "name": "NodeC",
     "url": "http://nodec:3000",
-    "instance_id": "29902e36-ca21-4551-aa5b-d68fed5a37b6",
-    "last_seen": "2026-02-27 16:28:58",
-    "created_at": "2026-02-27 16:28:55"
+    "instance_id": "b0e95c28-3c1a-49f1-a262-82672e24ff14",
+    "last_seen": "2026-03-01 02:17:30",
+    "auto_replicate": 0,
+    "sync_library_id": null,
+    "created_at": "2026-03-01 02:17:26"
   }
 ]
 ──────────────────────────────────────
@@ -813,11 +921,11 @@ RESPONSE: HTTP 200
 [17] Testing gossip resolve with stale record...
 
 ──────────────────────────────────────
-REQUEST #8  16:28:59
+REQUEST #8  02:17:31
 POST http://nodea:3000/api/federation/announce
-  Header: Authorization: Bearer adb_8d6f9651fbf5385b8473fcddc95458dd14799ea028c80daf2f484a600e515ab9
+  Header: Authorization: Bearer adb_5273adc4c6376f396b32ad5f43720ee4110311e845a297755e474f125459fb10
   Header: Content-Type: application/json
-  Body: {"instanceId":"29902e36-ca21-4551-aa5b-d68fed5a37b6","url":"http://dead-host:9999"}
+  Body: {"instanceId":"b0e95c28-3c1a-49f1-a262-82672e24ff14","url":"http://dead-host:9999"}
 RESPONSE: HTTP 200
 {
   "updated": true
@@ -825,69 +933,77 @@ RESPONSE: HTTP 200
 ──────────────────────────────────────
 
 ──────────────────────────────────────
-REQUEST #9  16:28:59
+REQUEST #9  02:17:31
 GET http://nodea:3000/api/peers
 RESPONSE: HTTP 200
 [
   {
-    "id": "198822cf-8671-4a5e-87f6-8109f44ace69",
+    "id": "97693731-c57e-4051-8c6d-e9cfdb6e49fd",
     "name": "NodeB",
     "url": "http://nodeb:3000",
-    "instance_id": "6babcd1d-ac5e-4892-b242-538d21164eaa",
-    "last_seen": "2026-02-27 16:28:55",
-    "created_at": "2026-02-27 16:28:55"
+    "instance_id": "653040fd-dec6-45f0-bcce-7312d7db4313",
+    "last_seen": "2026-03-01 02:17:26",
+    "auto_replicate": 0,
+    "sync_library_id": null,
+    "created_at": "2026-03-01 02:17:26"
   },
   {
-    "id": "4e5b4bb4-00e4-4d96-9679-295246d3bae6",
+    "id": "a205d1d9-a84e-4c3a-9536-2925d4c8f261",
     "name": "NodeC",
     "url": "http://dead-host:9999",
-    "instance_id": "29902e36-ca21-4551-aa5b-d68fed5a37b6",
-    "last_seen": "2026-02-27 16:28:59",
-    "created_at": "2026-02-27 16:28:55"
+    "instance_id": "b0e95c28-3c1a-49f1-a262-82672e24ff14",
+    "last_seen": "2026-03-01 02:17:31",
+    "auto_replicate": 0,
+    "sync_library_id": null,
+    "created_at": "2026-03-01 02:17:26"
   }
 ]
 ──────────────────────────────────────
   PASS: A has stale URL for C
 
 ──────────────────────────────────────
-REQUEST #9  16:28:59
+REQUEST #9  02:17:31
 GET http://nodeb:3000/api/peers
 RESPONSE: HTTP 200
 [
   {
-    "id": "c82f9827-3d49-4ab0-b9e5-e40adcda27cc",
-    "name": "NodeA",
-    "url": "http://nodea:3000",
-    "instance_id": "ab457844-d166-4a7d-ad83-947ed6a80fd0",
-    "last_seen": "2026-02-27 16:28:55",
-    "created_at": "2026-02-27 16:28:55"
-  },
-  {
-    "id": "ab266467-d8d9-4877-98c7-2f21f789236e",
+    "id": "b6efc81b-2744-4dee-8c1e-bc307f910b57",
     "name": "NodeC",
     "url": "http://nodec:3000",
-    "instance_id": "29902e36-ca21-4551-aa5b-d68fed5a37b6",
-    "last_seen": "2026-02-27 16:28:58",
-    "created_at": "2026-02-27 16:28:55"
+    "instance_id": "b0e95c28-3c1a-49f1-a262-82672e24ff14",
+    "last_seen": "2026-03-01 02:17:30",
+    "auto_replicate": 0,
+    "sync_library_id": null,
+    "created_at": "2026-03-01 02:17:27"
+  },
+  {
+    "id": "4f5eecda-6787-4ee7-8b25-cac64b9c67d3",
+    "name": "NodeA",
+    "url": "http://nodea:3000",
+    "instance_id": "a793cc16-a57d-4070-878d-5f75ebaaeb53",
+    "last_seen": "2026-03-01 02:17:26",
+    "auto_replicate": 0,
+    "sync_library_id": null,
+    "created_at": "2026-03-01 02:17:26"
   }
 ]
 ──────────────────────────────────────
   PASS: B still has correct URL for C
 
 ──────────────────────────────────────
-REQUEST #9  16:28:59
-POST http://nodea:3000/api/peers/4e5b4bb4-00e4-4d96-9679-295246d3bae6/resolve
+REQUEST #9  02:17:31
+POST http://nodea:3000/api/peers/a205d1d9-a84e-4c3a-9536-2925d4c8f261/resolve
 RESPONSE: HTTP 200
 {
   "resolved": true,
   "via": "NodeB",
   "peer": {
-    "id": "4e5b4bb4-00e4-4d96-9679-295246d3bae6",
+    "id": "a205d1d9-a84e-4c3a-9536-2925d4c8f261",
     "name": "NodeC",
     "url": "http://nodec:3000",
-    "instance_id": "29902e36-ca21-4551-aa5b-d68fed5a37b6",
-    "last_seen": "2026-02-27 16:28:59",
-    "created_at": "2026-02-27 16:28:55"
+    "instance_id": "b0e95c28-3c1a-49f1-a262-82672e24ff14",
+    "last_seen": "2026-03-01 02:17:31",
+    "created_at": "2026-03-01 02:17:26"
   }
 }
 ──────────────────────────────────────
@@ -895,36 +1011,40 @@ RESPONSE: HTTP 200
   PASS: Resolved via B
 
 ──────────────────────────────────────
-REQUEST #9  16:28:59
+REQUEST #9  02:17:31
 GET http://nodea:3000/api/peers
 RESPONSE: HTTP 200
 [
   {
-    "id": "198822cf-8671-4a5e-87f6-8109f44ace69",
+    "id": "97693731-c57e-4051-8c6d-e9cfdb6e49fd",
     "name": "NodeB",
     "url": "http://nodeb:3000",
-    "instance_id": "6babcd1d-ac5e-4892-b242-538d21164eaa",
-    "last_seen": "2026-02-27 16:28:55",
-    "created_at": "2026-02-27 16:28:55"
+    "instance_id": "653040fd-dec6-45f0-bcce-7312d7db4313",
+    "last_seen": "2026-03-01 02:17:26",
+    "auto_replicate": 0,
+    "sync_library_id": null,
+    "created_at": "2026-03-01 02:17:26"
   },
   {
-    "id": "4e5b4bb4-00e4-4d96-9679-295246d3bae6",
+    "id": "a205d1d9-a84e-4c3a-9536-2925d4c8f261",
     "name": "NodeC",
     "url": "http://nodec:3000",
-    "instance_id": "29902e36-ca21-4551-aa5b-d68fed5a37b6",
-    "last_seen": "2026-02-27 16:28:59",
-    "created_at": "2026-02-27 16:28:55"
+    "instance_id": "b0e95c28-3c1a-49f1-a262-82672e24ff14",
+    "last_seen": "2026-03-01 02:17:31",
+    "auto_replicate": 0,
+    "sync_library_id": null,
+    "created_at": "2026-03-01 02:17:26"
   }
 ]
 ──────────────────────────────────────
   PASS: A's URL for C fixed via gossip
 
 ──────────────────────────────────────
-REQUEST #9  16:28:59
-GET http://nodea:3000/api/peers/4e5b4bb4-00e4-4d96-9679-295246d3bae6/library
+REQUEST #9  02:17:31
+GET http://nodea:3000/api/peers/a205d1d9-a84e-4c3a-9536-2925d4c8f261/library
 RESPONSE: HTTP 200
 {
-  "instanceId": "29902e36-ca21-4551-aa5b-d68fed5a37b6",
+  "instanceId": "b0e95c28-3c1a-49f1-a262-82672e24ff14",
   "instanceName": "NodeC",
   "items": []
 }
@@ -932,6 +1052,6 @@ RESPONSE: HTTP 200
   PASS: A can browse C after resolve
 
 ========================================
-  Results: 67/67 passed
+  Results: 71/71 passed
   All tests passed!
 ========================================

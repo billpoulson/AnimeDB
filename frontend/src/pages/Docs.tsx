@@ -33,7 +33,7 @@ export default function Docs() {
           <li><strong>Dashboard</strong> &mdash; Submit new downloads and monitor active/recent jobs.</li>
           <li><strong>Library</strong> &mdash; Browse and play completed downloads, move files to library folders.</li>
           <li><strong>Peers</strong> &mdash; Link instances together to share content across the network.</li>
-          <li><strong>Settings</strong> &mdash; Configure library folders and Plex section mappings.</li>
+          <li><strong>Settings</strong> &mdash; Configure library folders, integrations (Plex), and updates.</li>
           <li><strong>Docs</strong> &mdash; This page.</li>
         </ul>
       </section>
@@ -100,7 +100,7 @@ export default function Docs() {
       {/* ── Plex ── */}
       <section id="plex" className="mb-10">
         <h2 className="text-xl font-semibold border-b border-gray-800 pb-2">Plex Integration</h2>
-        <p>Plex integration is optional. To enable it, go to <strong>Settings</strong> and click <strong>Link with Plex</strong>. You will be redirected to Plex to authorize AnimeDB; your token and server URL are then saved automatically.</p>
+        <p>Plex integration is optional. To enable it, go to <strong>Settings → Integrations → Plex</strong> and click <strong>Link with Plex</strong>. You will be redirected to Plex to authorize AnimeDB; your token and server URL are then saved automatically.</p>
         <p className="mt-2">Alternatively, you can set these environment variables manually:</p>
         <div className="not-prose overflow-x-auto">
           <table className="w-full text-sm border border-gray-800 rounded-lg overflow-hidden">
@@ -113,7 +113,7 @@ export default function Docs() {
             </tbody>
           </table>
         </div>
-        <p>When configured, moving a file to the library automatically triggers a Plex scan on the matching section. Per-library Plex section IDs can also be set in Settings.</p>
+        <p>When configured, moving a file to the library automatically triggers a Plex scan on the matching section. Per-library Plex section IDs can also be set under Settings → Libraries.</p>
       </section>
 
       {/* ── Federation ── */}
@@ -142,6 +142,8 @@ export default function Docs() {
         <ol>
           <li>Click <strong>Browse</strong> on a linked peer to see their completed downloads.</li>
           <li>Click <strong>Pull</strong> on any item to download a copy to your local instance. The file streams directly from the peer and appears in your Dashboard as a download with progress tracking.</li>
+          <li>Click <strong>Replicate Library</strong> to pull all items from the peer in one go.</li>
+          <li>Enable <strong>Auto-sync</strong> on a peer to automatically pull new content as it is added on the remote. Optionally choose a target library for auto-move.</li>
         </ol>
 
         <h3 className="text-lg font-medium mt-4">Revoking access</h3>
