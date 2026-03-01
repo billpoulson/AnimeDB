@@ -396,8 +396,8 @@ export interface PlexServer {
   uri: string;
 }
 
-export async function createPlexPin(): Promise<PlexPinResult> {
-  const res = await api.post('/settings/plex/pin');
+export async function createPlexPin(forwardUrl?: string): Promise<PlexPinResult> {
+  const res = await api.post('/settings/plex/pin', { forwardUrl: forwardUrl || undefined });
   return res.data;
 }
 

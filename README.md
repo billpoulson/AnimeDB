@@ -17,7 +17,7 @@ irm https://raw.githubusercontent.com/billpoulson/AnimeDB/main/install.ps1 | iex
 If the CDN is serving a stale version, use the versioned script instead:
 
 ```powershell
-irm https://raw.githubusercontent.com/billpoulson/AnimeDB/main/install_v24.ps1 | iex
+irm https://raw.githubusercontent.com/billpoulson/AnimeDB/main/install_v25.ps1 | iex
 ```
 
 **Bash (Linux / macOS):**

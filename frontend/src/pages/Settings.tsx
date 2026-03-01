@@ -277,6 +277,9 @@ function PlexIntegration({ onConnectionChange }: { onConnectionChange: () => voi
     setLinkErr('');
     setLinkStep('idle');
     try {
+      // Do not pass forwardUrl: Plex would redirect back to our app in the popup tab,
+      // which can trigger a login prompt (popup may not share auth state). Polling
+      // handles the flow; user stays on Plex page and returns to Settings tab manually.
       const pin = await createPlexPin();
       setLinkPin(pin);
       setLinkStep('pin');
@@ -688,6 +691,10 @@ function UpdateCheck() {
           clearInterval(interval);
           setInfo(result);
           setUpdateMsg('');
+          setUpdating(false);
+        } else if (!result.updateInProgress && result.currentSha !== targetSha) {
+          clearInterval(interval);
+          setUpdateErr('Update failed. Check server logs for details.');
           setUpdating(false);
         }
       } catch {
