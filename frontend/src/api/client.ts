@@ -193,9 +193,22 @@ export async function scanForFolders(): Promise<ScannedFolder[]> {
 
 // API Keys
 
+export const PERMISSION_LABELS: Record<string, string> = {
+  full: 'Full access',
+  networking: 'Networking',
+  federation: 'Federation sync',
+  peers: 'Peers',
+  downloads: 'Downloads',
+  libraries: 'Libraries',
+  keys: 'API keys',
+  settings: 'Settings',
+  system: 'System',
+};
+
 export interface ApiKey {
   id: string;
   label: string;
+  permissions?: string[];
   created_at: string;
 }
 
@@ -209,8 +222,8 @@ export async function getApiKeys(): Promise<ApiKey[]> {
   return res.data;
 }
 
-export async function createApiKey(label: string): Promise<ApiKeyCreated> {
-  const res = await api.post('/keys', { label });
+export async function createApiKey(label: string, permissions?: string[]): Promise<ApiKeyCreated> {
+  const res = await api.post('/keys', permissions ? { label, permissions } : { label });
   return res.data;
 }
 
@@ -297,6 +310,7 @@ export interface NetworkingInfo {
   instanceName: string;
   externalUrl: string | null;
   remotelyManaged?: boolean;
+  connectable?: boolean;
   upnp: {
     active: boolean;
     externalIp: string | null;

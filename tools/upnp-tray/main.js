@@ -3,7 +3,7 @@
  * Runs on the host, discovers router via UPnP, pushes external URL to AnimeDB.
  */
 
-const { app, Tray, Menu, shell, BrowserWindow, ipcMain } = require('electron');
+const { app, Tray, Menu, shell, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const upnp = require('./upnp');
 const api = require('./api');
@@ -23,12 +23,37 @@ let lastError = null;
 let loginWindow = null;
 let pendingPushUrl = null;
 
-function getIconPath() {
-  return path.join(__dirname, 'icon.png');
+// Auto-update state: null | 'checking' | 'available' | 'downloaded' | 'error' | 'not-available'
+let updateStatus = null;
+let updateVersion = null;
+
+const ICON_STATUS = {
+  green: 'icon-green.png',   // connected and working
+  red: 'icon-red.png',       // connection error
+  blue: 'icon-blue.png',     // unconfigured
+  yellow: 'icon-yellow.png', // authenticating
+};
+
+function getIconPath(status) {
+  const name = ICON_STATUS[status] || ICON_STATUS.blue;
+  return path.join(__dirname, name);
+}
+
+function getTrayStatus() {
+  if (loginWindow && !loginWindow.isDestroyed()) return 'yellow';
+  if (lastError) return 'red';
+  if (lastUrl) return 'green';
+  return 'blue';
+}
+
+function updateTrayIcon() {
+  if (!tray) return;
+  const status = getTrayStatus();
+  tray.setImage(getIconPath(status));
 }
 
 function createTray() {
-  tray = new Tray(getIconPath());
+  tray = new Tray(getIconPath('blue'));
   tray.setToolTip('AnimeDB UPnP');
   updateContextMenu();
 }
@@ -40,7 +65,7 @@ function updateContextMenu() {
       ? `Active: ${lastUrl}`
       : 'Starting...';
 
-  const contextMenu = Menu.buildFromTemplate([
+  const items = [
     { label: status, enabled: false },
     { type: 'separator' },
     {
@@ -55,14 +80,42 @@ function updateContextMenu() {
       label: 'Login',
       click: () => showLoginWindow(),
     },
-    { type: 'separator' },
-    {
-      label: 'Exit',
-      click: () => app.quit(),
-    },
-  ]);
+  ];
 
-  tray.setContextMenu(contextMenu);
+  if (app.isPackaged) {
+    const updateLabel =
+      updateStatus === 'checking'
+        ? 'Checking for updates...'
+        : updateStatus === 'available'
+          ? `Update available: ${updateVersion}`
+          : updateStatus === 'downloaded'
+            ? 'Restart to install update'
+            : updateStatus === 'error'
+              ? 'Update check failed'
+              : updateStatus === 'not-available'
+                ? 'No updates available'
+                : 'Check for updates';
+    items.push(
+      { type: 'separator' },
+      {
+        label: updateLabel,
+        enabled: !['checking', 'downloaded'].includes(updateStatus || ''),
+        click: () => checkForUpdates(),
+      }
+    );
+  }
+
+  items.push({ type: 'separator' }, { label: 'Exit', click: () => app.quit() });
+  tray.setContextMenu(Menu.buildFromTemplate(items));
+  updateTrayIcon();
+}
+
+function checkForUpdates() {
+  if (!app.isPackaged) return;
+  const { autoUpdater } = require('electron-updater');
+  updateStatus = 'checking';
+  updateContextMenu();
+  autoUpdater.checkForUpdates();
 }
 
 function showLoginWindow(urlToPushAfter) {
@@ -73,8 +126,8 @@ function showLoginWindow(urlToPushAfter) {
   pendingPushUrl = urlToPushAfter || null;
 
   loginWindow = new BrowserWindow({
-    width: 320,
-    height: 180,
+    width: 340,
+    height: 240,
     resizable: false,
     show: false,
     webPreferences: {
@@ -87,8 +140,12 @@ function showLoginWindow(urlToPushAfter) {
   loginWindow.on('closed', () => {
     loginWindow = null;
     pendingPushUrl = null;
+    updateContextMenu();
   });
-  loginWindow.once('ready-to-show', () => loginWindow.show());
+  loginWindow.once('ready-to-show', () => {
+    loginWindow.show();
+    updateContextMenu();
+  });
 }
 
 async function pushToAnimeDB(url) {
@@ -106,10 +163,19 @@ async function pushToAnimeDB(url) {
   return false;
 }
 
+async function reportConnectable(url, connectable) {
+  try {
+    await api.setConnectable(connectable);
+  } catch {
+    // non-critical
+  }
+}
+
 async function runUpnp() {
   lastError = null;
   lastUrl = null;
   updateContextMenu();
+  await reportConnectable(null, false);
 
   try {
     const result = await upnp.mapPort(PORT);
@@ -117,9 +183,15 @@ async function runUpnp() {
 
     const pushed = await pushToAnimeDB(result.url);
     if (pushed) {
+      const reachable = await api.verifyReachableAtUrl(result.url);
+      await reportConnectable(result.url, reachable);
       upnp.startRenewalLoop(PORT, PORT, async (renewResult) => {
         lastUrl = renewResult.url;
-        await pushToAnimeDB(renewResult.url);
+        const renewed = await pushToAnimeDB(renewResult.url);
+        if (renewed) {
+          const reachableAgain = await api.verifyReachableAtUrl(renewResult.url);
+          await reportConnectable(renewResult.url, reachableAgain);
+        }
         updateContextMenu();
       });
     } else if (lastError !== 'Authentication required') {
@@ -149,9 +221,15 @@ async function handleLogin(password) {
   if (pendingPushUrl) {
     const ok = await pushToAnimeDB(pendingPushUrl);
     if (ok) {
+      const reachable = await api.verifyReachableAtUrl(pendingPushUrl);
+      await reportConnectable(pendingPushUrl, reachable);
       upnp.startRenewalLoop(PORT, PORT, async (renewResult) => {
         lastUrl = renewResult.url;
-        await pushToAnimeDB(renewResult.url);
+        const renewed = await pushToAnimeDB(renewResult.url);
+        if (renewed) {
+          const reachableAgain = await api.verifyReachableAtUrl(renewResult.url);
+          await reportConnectable(renewResult.url, reachableAgain);
+        }
         updateContextMenu();
       });
     }
@@ -160,7 +238,60 @@ async function handleLogin(password) {
 
 function cleanup() {
   upnp.stopRenewalLoop();
+  reportConnectable(null, false).catch(() => {});
   upnp.unmap(upnp.mappedPort).catch(() => {});
+}
+
+function setupAutoUpdater() {
+  if (!app.isPackaged) return;
+
+  const { autoUpdater } = require('electron-updater');
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = false;
+
+  autoUpdater.on('checking-for-update', () => {
+    updateStatus = 'checking';
+    updateContextMenu();
+  });
+  autoUpdater.on('update-available', (info) => {
+    updateStatus = 'available';
+    updateVersion = info.version;
+    updateContextMenu();
+    tray.setToolTip(`AnimeDB UPnP - Update ${info.version} available`);
+  });
+  autoUpdater.on('update-not-available', () => {
+    updateStatus = 'not-available';
+    updateContextMenu();
+    setTimeout(() => {
+      updateStatus = null;
+      updateContextMenu();
+    }, 3000);
+  });
+  autoUpdater.on('update-downloaded', () => {
+    updateStatus = 'downloaded';
+    updateContextMenu();
+    tray.setToolTip('AnimeDB UPnP - Restart to install update');
+    dialog
+      .showMessageBox({
+        type: 'info',
+        title: 'Update ready',
+        message: 'A new version has been downloaded. Restart now to install?',
+        buttons: ['Restart now', 'Later'],
+      })
+      .then(({ response }) => {
+        if (response === 0) autoUpdater.quitAndInstall(false, true);
+      });
+  });
+  autoUpdater.on('error', () => {
+    updateStatus = 'error';
+    updateContextMenu();
+    setTimeout(() => {
+      updateStatus = null;
+      updateContextMenu();
+    }, 3000);
+  });
+
+  autoUpdater.checkForUpdatesAndNotify();
 }
 
 app.whenReady().then(() => {
@@ -173,6 +304,7 @@ app.whenReady().then(() => {
 
   createTray();
   runUpnp();
+  setupAutoUpdater();
 });
 
 app.on('window-all-closed', () => {});

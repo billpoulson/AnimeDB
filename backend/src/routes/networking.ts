@@ -6,6 +6,7 @@ import { announceToAllPeers } from '../services/announce';
 
 const router = Router();
 const REMOTELY_MANAGED_KEY = 'external_url_remotely_managed';
+const CONNECTABLE_KEY = 'external_url_connectable';
 
 function getRemotelyManaged(): boolean {
   const db = getDb();
@@ -22,6 +23,21 @@ function setRemotelyManaged(value: boolean): void {
   }
 }
 
+function getConnectable(): boolean {
+  const db = getDb();
+  const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(CONNECTABLE_KEY) as { value: string } | undefined;
+  return row?.value === '1';
+}
+
+function setConnectable(value: boolean): void {
+  const db = getDb();
+  if (value) {
+    db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(CONNECTABLE_KEY, '1');
+  } else {
+    db.prepare('DELETE FROM settings WHERE key = ?').run(CONNECTABLE_KEY);
+  }
+}
+
 router.get('/', (_req: Request, res: Response) => {
   const upnp = getUpnpState();
   res.json({
@@ -29,6 +45,7 @@ router.get('/', (_req: Request, res: Response) => {
     instanceName: config.instanceName,
     externalUrl: getExternalUrl(),
     remotelyManaged: getRemotelyManaged(),
+    connectable: getConnectable(),
     upnp: {
       active: upnp.active,
       externalIp: upnp.externalIp,
@@ -78,6 +95,15 @@ router.post('/upnp-retry', async (req: Request, res: Response) => {
       error: result.error,
     },
   });
+});
+
+router.put('/connectable', (req: Request, res: Response) => {
+  const { connectable } = req.body;
+  if (typeof connectable !== 'boolean') {
+    return res.status(400).json({ error: 'connectable must be a boolean' });
+  }
+  setConnectable(connectable);
+  res.json({ connectable: getConnectable() });
 });
 
 export default router;

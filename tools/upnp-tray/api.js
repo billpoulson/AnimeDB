@@ -102,13 +102,14 @@ async function login(password) {
     }
 
     // Create a long-lived API key for the tray (survives logout)
+    // Scoped to networking only — can manage external URL, nothing else
     const keyRes = await fetch(`${BASE_URL}/api/keys`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${sessionToken}`,
       },
-      body: JSON.stringify({ label: 'UPnP Tray' }),
+      body: JSON.stringify({ label: 'UPnP Tray', permissions: ['networking'] }),
     });
     const keyData = await keyRes.json().catch(() => ({}));
     if (!keyRes.ok) {
@@ -155,6 +156,47 @@ async function setExternalUrl(url) {
 }
 
 /**
+ * Tell AnimeDB whether the instance is reachable at its external URL (connectable).
+ * Called by the tray when it has verified reachability via the external URL.
+ */
+async function setConnectable(connectable) {
+  try {
+    const headers = {
+      'Content-Type': 'application/json',
+      ...getAuthHeaders(),
+    };
+    const res = await fetch(`${BASE_URL}/api/networking/connectable`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify({ connectable: !!connectable }),
+    });
+    if (res.status === 401) {
+      clearToken();
+      return { success: false, authRequired: true };
+    }
+    if (!res.ok) return { success: false };
+    return { success: true };
+  } catch {
+    return { success: false };
+  }
+}
+
+/**
+ * Verify that AnimeDB is reachable at the given external URL (e.g. from the internet).
+ * Uses a quick request to the external URL; if it succeeds, the instance is connectable.
+ */
+async function verifyReachableAtUrl(url) {
+  if (!url || typeof url !== 'string') return false;
+  const base = url.replace(/\/+$/, '');
+  try {
+    const res = await fetch(`${base}/api/config`, { method: 'GET', signal: AbortSignal.timeout(10000) });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Check if AnimeDB is reachable and auth status.
  */
 async function checkAuth() {
@@ -176,6 +218,8 @@ async function checkAuth() {
 module.exports = {
   init,
   setExternalUrl,
+  setConnectable,
+  verifyReachableAtUrl,
   login,
   checkAuth,
   ping: () => fetch(`${BASE_URL}/api/config`).then((r) => r.ok).catch(() => false),

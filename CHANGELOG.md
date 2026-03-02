@@ -4,8 +4,17 @@ All notable changes to AnimeDB will be documented in this file.
 
 ## [Unreleased]
 
+_No unreleased changes._
+
+## [2026-03-02]
+
 ### Added
 
+- **Connectable on Peers screen** — When the UPnP Tray (or another client) has verified that AnimeDB is reachable at its external URL, the Peers → Networking section shows “Connectable: Yes — reachable at external URL”. The tray verifies reachability after mapping and on each renewal, and reports the result to the backend so the web UI can display it.
+- **UPnP Tray icon status** — The tray icon shows green when connected, red on error, blue when unconfigured, and yellow while authenticating.
+- **UPnP Tray auto-update** — The Windows UPnP Tray app checks for updates on startup and via "Check for updates" in the context menu. Updates are delivered from GitHub Releases (tag prefix `upnp-tray-v`). When an update is downloaded, you're prompted to restart to install.
+- **UPnP URL auto-refresh** — Backend UPnP service now checks external IP every 5 minutes (in addition to the 20-minute lease renewal), so IP changes are detected and remapped sooner. When the instance is initially unreachable after mapping ("port mapping may not have propagated yet"), the service retries reachability every 90 seconds (up to 10 times) until it succeeds.
+- **API key permissions** — Keys can be scoped to specific capabilities. When creating a key, choose Full access, Federation sync only (peer can sync but not modify your collection), Networking only (e.g. for UPnP Tray), or Custom. The UPnP Tray app now creates a networking-only key. See Docs → API Key Permissions.
 - **AnimeDB UPnP Tray (Windows)** — System tray app for Docker on Windows. Runs on the host, discovers the router via UPnP, and pushes the external URL to AnimeDB. Login creates a long-lived API key so you won't be prompted again after web logout. See `tools/upnp-tray/README.md`.
 - **Test coverage for auto-sync** — Frontend Peers tests for auto-sync toggle and library picker; backend peerSync unit tests; Docker p2p integration tests for PATCH auto_replicate.
 - **Auto-sync peer library** — Enable Auto-sync on a linked peer to automatically pull new content as it is added on the remote. Polls every 15 minutes (configurable via `PEER_SYNC_INTERVAL_MINUTES`). Optionally choose a target library for auto-move.

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import {
-  ApiKey, Peer, NetworkingInfo, ApiKeyCreated, Library,
+  ApiKey, Peer, NetworkingInfo, ApiKeyCreated, Library, PERMISSION_LABELS,
   getApiKeys, createApiKey, deleteApiKey,
   getPeers, addPeer, deletePeer, connectPeer, updatePeer,
   getNetworking, setExternalUrl, resolvePeer, retryUpnp,
@@ -17,6 +17,8 @@ export default function Peers() {
 
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [newKeyLabel, setNewKeyLabel] = useState('');
+  const [keyPermissionPreset, setKeyPermissionPreset] = useState<'full' | 'networking' | 'federation' | 'custom'>('full');
+  const [keyCustomPermissions, setKeyCustomPermissions] = useState<Record<string, boolean>>({});
   const [createdKeyResult, setCreatedKeyResult] = useState<ApiKeyCreated | null>(null);
   const [keyError, setKeyError] = useState('');
 
@@ -91,11 +93,20 @@ export default function Peers() {
     }
   };
 
+  const getKeyPermissions = (): string[] | undefined => {
+    if (keyPermissionPreset === 'full') return undefined;
+    if (keyPermissionPreset === 'networking') return ['networking'];
+    if (keyPermissionPreset === 'federation') return ['federation'];
+    const selected = Object.entries(keyCustomPermissions).filter(([, v]) => v).map(([k]) => k);
+    return selected.length > 0 ? selected : undefined;
+  };
+
   const handleCreateKey = async () => {
     if (!newKeyLabel.trim()) { setKeyError('Label is required'); return; }
     setKeyError('');
     try {
-      const result = await createApiKey(newKeyLabel.trim());
+      const permissions = getKeyPermissions();
+      const result = await createApiKey(newKeyLabel.trim(), permissions);
       setCreatedKeyResult(result);
       setNewKeyLabel('');
       refresh();
@@ -252,38 +263,7 @@ export default function Peers() {
                     readOnly={networking.remotelyManaged}
                     className={`flex-1 min-w-0 bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 ${networking.remotelyManaged ? 'opacity-60 cursor-not-allowed' : ''}`}
                   />
-                  {networking.remotelyManaged ? (
-                    <>
-                      <span className="text-xs text-blue-400 flex items-center gap-1 shrink-0">
-                        <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" /></svg>
-                        Managed by UPnP helper
-                      </span>
-                      {networking.externalUrl && (
-                        <button
-                          onClick={handleCopy}
-                          className="text-xs px-3 py-1.5 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors shrink-0"
-                        >
-                          {copied ? 'Copied!' : 'Copy'}
-                        </button>
-                      )}
-                      <button
-                        onClick={async () => {
-                          setUrlSaving(true);
-                          try {
-                            const result = await setExternalUrl(urlInput.trim() || null);
-                            setNetworking((prev) => prev ? { ...prev, externalUrl: result.externalUrl, remotelyManaged: false } : prev);
-                          } finally {
-                            setUrlSaving(false);
-                          }
-                        }}
-                        disabled={urlSaving}
-                        className="text-xs px-2 py-1 rounded bg-gray-700 hover:bg-gray-600 text-gray-400 hover:text-gray-300 transition-colors shrink-0"
-                        title="Take manual control of the external URL"
-                      >
-                        Override
-                      </button>
-                    </>
-                  ) : (
+                  {!networking.remotelyManaged && (
                     <>
                       <button
                         onClick={handleSetUrl}
@@ -302,13 +282,36 @@ export default function Peers() {
                       )}
                     </>
                   )}
+                  {networking.remotelyManaged && networking.externalUrl && (
+                    <button
+                      onClick={handleCopy}
+                      className="text-xs px-3 py-1.5 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors shrink-0"
+                    >
+                      {copied ? 'Copied!' : 'Copy'}
+                    </button>
+                  )}
                 </div>
               </div>
+              {networking.remotelyManaged && (
+                <p className="text-xs text-blue-400 ml-[7.5rem] flex items-center gap-1 mt-1">
+                  <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" /></svg>
+                  Managed by UPnP helper
+                </p>
+              )}
               {!networking.externalUrl && !networking.remotelyManaged && (
                 <p className="text-xs text-yellow-400 ml-[7.5rem]">
                   No external URL detected. Set one manually or enable UPnP.
                   {' '}<a href="/docs#upnp-troubleshooting" className="underline hover:text-yellow-300">See troubleshooting guide</a>
                 </p>
+              )}
+              {networking.externalUrl && networking.connectable && (
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-gray-400 w-28 shrink-0">Connectable</span>
+                  <span className="text-xs text-green-400 flex items-center gap-1">
+                    <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                    Yes — reachable at external URL
+                  </span>
+                </div>
               )}
             </>
           )}
@@ -320,20 +323,50 @@ export default function Peers() {
         <h2 className="text-lg font-semibold mb-4">API Keys</h2>
         <p className="text-sm text-gray-500 mb-3">Generate keys so other instances can connect to yours.</p>
 
-        <div className="flex items-center gap-2 mb-4">
-          <input
-            value={newKeyLabel}
-            onChange={(e) => setNewKeyLabel(e.target.value)}
-            placeholder={"Label, e.g. \"Bob's instance\""}
-            className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            onKeyDown={(e) => e.key === 'Enter' && handleCreateKey()}
-          />
-          <button
-            onClick={handleCreateKey}
-            className="text-sm px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-700 text-white transition-colors"
-          >
-            Generate
-          </button>
+        <div className="space-y-3 mb-4">
+          <div className="flex items-center gap-2">
+            <input
+              value={newKeyLabel}
+              onChange={(e) => setNewKeyLabel(e.target.value)}
+              placeholder={"Label, e.g. \"Bob's instance\""}
+              className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              onKeyDown={(e) => e.key === 'Enter' && handleCreateKey()}
+            />
+            <button
+              onClick={handleCreateKey}
+              className="text-sm px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+            >
+              Generate
+            </button>
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="text-xs text-gray-500">Permissions:</span>
+            <select
+              value={keyPermissionPreset}
+              onChange={(e) => setKeyPermissionPreset(e.target.value as typeof keyPermissionPreset)}
+              className="text-xs bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="full">Full access</option>
+              <option value="networking">Networking only</option>
+              <option value="federation">Federation sync only</option>
+              <option value="custom">Custom</option>
+            </select>
+            {keyPermissionPreset === 'custom' && (
+              <div className="flex flex-wrap gap-2">
+                {(['networking', 'federation', 'peers', 'downloads', 'libraries', 'keys', 'settings', 'system'] as const).map((p) => (
+                  <label key={p} className="flex items-center gap-1 text-xs text-gray-400 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={keyCustomPermissions[p] ?? false}
+                      onChange={(e) => setKeyCustomPermissions((prev) => ({ ...prev, [p]: e.target.checked }))}
+                      className="rounded border-gray-600"
+                    />
+                    {PERMISSION_LABELS[p] || p}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
         {keyError && <p className="text-xs text-red-400 mb-2">{keyError}</p>}
 
@@ -419,6 +452,7 @@ export default function Peers() {
               <thead>
                 <tr className="bg-gray-900 text-left text-gray-400">
                   <th className="px-4 py-3 font-medium">Label</th>
+                  <th className="px-4 py-3 font-medium">Permissions</th>
                   <th className="px-4 py-3 font-medium">Created</th>
                   <th className="px-4 py-3 font-medium w-10"></th>
                 </tr>
@@ -427,6 +461,13 @@ export default function Peers() {
                 {keys.map((k) => (
                   <tr key={k.id} className="border-t border-gray-800/50 hover:bg-gray-900/50">
                     <td className="px-4 py-3 font-medium">{k.label}</td>
+                    <td className="px-4 py-3">
+                      <span className="text-xs text-gray-500" title={(k.permissions || ['full']).map((p) => PERMISSION_LABELS[p] || p).join(', ')}>
+                        {(k.permissions || ['full']).includes('full')
+                          ? 'Full'
+                          : (k.permissions || []).map((p) => PERMISSION_LABELS[p] || p).join(', ')}
+                      </span>
+                    </td>
                     <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
                       {new Date(k.created_at).toLocaleDateString()}
                     </td>

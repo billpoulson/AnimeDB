@@ -84,6 +84,37 @@ describe('Networking API', () => {
       expect(res.body.externalUrl).toBe('https://my.domain.com');
       expect(res.body.upnp.active).toBe(false);
     });
+
+    it('returns connectable when set', async () => {
+      mockGetUpnpState.mockReturnValue({ active: true, externalIp: '1.2.3.4', externalUrl: 'http://1.2.3.4:3000', error: null });
+      mockGetExternalUrl.mockReturnValue('http://1.2.3.4:3000');
+
+      await request.put('/api/networking/connectable').send({ connectable: true });
+      const res = await request.get('/api/networking');
+
+      expect(res.body.connectable).toBe(true);
+    });
+  });
+
+  describe('PUT /api/networking/connectable', () => {
+    it('sets connectable true and returns it', async () => {
+      const res = await request.put('/api/networking/connectable').send({ connectable: true });
+      expect(res.status).toBe(200);
+      expect(res.body.connectable).toBe(true);
+    });
+
+    it('sets connectable false and returns it', async () => {
+      await request.put('/api/networking/connectable').send({ connectable: true });
+      const res = await request.put('/api/networking/connectable').send({ connectable: false });
+      expect(res.status).toBe(200);
+      expect(res.body.connectable).toBe(false);
+    });
+
+    it('rejects non-boolean connectable', async () => {
+      const res = await request.put('/api/networking/connectable').send({ connectable: 'yes' });
+      expect(res.status).toBe(400);
+      expect(res.body.error).toContain('boolean');
+    });
   });
 
   describe('PUT /api/networking/external-url', () => {

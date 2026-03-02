@@ -11,6 +11,7 @@ const defaultNetworking = {
   instanceId: 'test-instance',
   instanceName: 'TestNode',
   externalUrl: null,
+  connectable: false,
   upnp: {
     active: false,
     externalIp: null,
@@ -30,6 +31,42 @@ describe('Peers', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     setupMocks();
+  });
+
+  describe('Connectable', () => {
+    it('shows Connectable when external URL is set and connectable is true', async () => {
+      setupMocks({
+        ...defaultNetworking,
+        externalUrl: 'http://1.2.3.4:3000',
+        connectable: true,
+      });
+      render(
+        <MemoryRouter>
+          <Peers />
+        </MemoryRouter>
+      );
+      await waitFor(() => {
+        expect(screen.getByText(/Connectable/i)).toBeInTheDocument();
+        expect(screen.getByText(/reachable at external URL/i)).toBeInTheDocument();
+      });
+    });
+
+    it('does not show Connectable when connectable is false', async () => {
+      setupMocks({
+        ...defaultNetworking,
+        externalUrl: 'http://1.2.3.4:3000',
+        connectable: false,
+      });
+      render(
+        <MemoryRouter>
+          <Peers />
+        </MemoryRouter>
+      );
+      await waitFor(() => {
+        expect(screen.getByText(/External URL/i)).toBeInTheDocument();
+      });
+      expect(screen.queryByText(/reachable at external URL/i)).not.toBeInTheDocument();
+    });
   });
 
   describe('UPnP retry', () => {
