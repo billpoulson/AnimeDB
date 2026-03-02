@@ -21,7 +21,9 @@ function mockPeersPageApis(
   page: Page,
   networking: {
     externalUrl: string | null;
-    upnp: { active: boolean; externalIp: string | null; error: string | null };
+    connectable?: boolean;
+    remotelyManaged?: boolean;
+    upnp: { active: boolean; externalIp: string | null; externalPort?: number | null; error: string | null };
   },
 ) {
   return Promise.all([
@@ -32,7 +34,9 @@ function mockPeersPageApis(
           instanceId: 'test-instance-id',
           instanceName: 'TestNode',
           externalUrl: networking.externalUrl,
-          upnp: networking.upnp,
+          connectable: networking.connectable ?? false,
+          remotelyManaged: networking.remotelyManaged ?? false,
+          upnp: { ...networking.upnp, externalPort: networking.upnp.externalPort ?? null },
         },
       });
     }),
@@ -40,6 +44,9 @@ function mockPeersPageApis(
       await route.fulfill({ json: [] });
     }),
     page.route('**/api/peers', async (route) => {
+      await route.fulfill({ json: [] });
+    }),
+    page.route('**/api/libraries', async (route) => {
       await route.fulfill({ json: [] });
     }),
   ]);
@@ -176,6 +183,48 @@ test.describe('Peers - No external URL', () => {
 
     await expect(page.getByText('No external URL detected')).not.toBeVisible();
     await expect(page.getByRole('link', { name: 'See troubleshooting guide' })).not.toBeVisible();
+  });
+});
+
+test.describe('Peers - Connectable status', () => {
+  test('shows Connectable in UPnP section when connectable is true', async ({ page }) => {
+    await mockPeersPageApis(page, {
+      externalUrl: 'http://1.2.3.4:3000',
+      connectable: true,
+      upnp: { active: true, externalIp: '1.2.3.4', externalPort: 3000, error: null },
+    });
+
+    await page.goto('/peers');
+
+    await expect(page.getByText('Active (1.2.3.4:3000)')).toBeVisible();
+    await expect(page.getByText('Yes — reachable at external URL')).toBeVisible();
+  });
+
+  test('shows Connectable: No in UPnP section when connectable is false', async ({ page }) => {
+    await mockPeersPageApis(page, {
+      externalUrl: 'http://1.2.3.4:3000',
+      connectable: false,
+      upnp: { active: true, externalIp: '1.2.3.4', externalPort: 3000, error: null },
+    });
+
+    await page.goto('/peers');
+
+    await expect(page.getByText('Active (1.2.3.4:3000)')).toBeVisible();
+    await expect(page.getByText('Connectable: No')).toBeVisible();
+  });
+
+  test('shows Connectable row when remotely managed and connectable', async ({ page }) => {
+    await mockPeersPageApis(page, {
+      externalUrl: 'http://1.2.3.4:3000',
+      connectable: true,
+      remotelyManaged: true,
+      upnp: { active: false, externalIp: null, error: null },
+    });
+
+    await page.goto('/peers');
+
+    await expect(page.getByText('Managed by UPnP helper')).toBeVisible();
+    await expect(page.getByText('Yes — reachable at external URL')).toBeVisible();
   });
 });
 

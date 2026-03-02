@@ -6,6 +6,14 @@ All notable changes to AnimeDB will be documented in this file.
 
 _No unreleased changes._
 
+## [2026-03-03]
+
+### Added
+
+- **UPnP section shows connectable status** — The Peers → Networking UPnP block now shows connectable status (Connectable: Yes — reachable at external URL, or Connectable: No) when an external URL is set. When the instance is remotely managed by the UPnP tray, the Connectable row still appears below External URL when reachable.
+- **Managed by UPnP helper** — The “Managed by UPnP helper” message is shown directly below the External URL input when the URL is managed by the tray.
+- **Tests for connectable** — Unit tests (Peers), e2e (Playwright Peers connectable status), and backend integration tests (connectable status change) for the connectable flow.
+
 ## [2026-03-02]
 
 ### Added

@@ -34,11 +34,12 @@ describe('Peers', () => {
   });
 
   describe('Connectable', () => {
-    it('shows Connectable when external URL is set and connectable is true', async () => {
+    it('shows Connectable in UPnP section when external URL is set and connectable is true', async () => {
       setupMocks({
         ...defaultNetworking,
         externalUrl: 'http://1.2.3.4:3000',
         connectable: true,
+        upnp: { active: true, externalIp: '1.2.3.4', externalPort: 3000, error: null },
       });
       render(
         <MemoryRouter>
@@ -51,7 +52,43 @@ describe('Peers', () => {
       });
     });
 
-    it('does not show Connectable when connectable is false', async () => {
+    it('shows Connectable: No in UPnP section when external URL is set but connectable is false', async () => {
+      setupMocks({
+        ...defaultNetworking,
+        externalUrl: 'http://1.2.3.4:3000',
+        connectable: false,
+        upnp: { active: true, externalIp: '1.2.3.4', externalPort: 3000, error: null },
+      });
+      render(
+        <MemoryRouter>
+          <Peers />
+        </MemoryRouter>
+      );
+      await waitFor(() => {
+        expect(screen.getByText(/Connectable: No/i)).toBeInTheDocument();
+      });
+      expect(screen.queryByText(/reachable at external URL/i)).not.toBeInTheDocument();
+    });
+
+    it('shows standalone Connectable row when remotely managed and connectable', async () => {
+      setupMocks({
+        ...defaultNetworking,
+        externalUrl: 'http://1.2.3.4:3000',
+        connectable: true,
+        remotelyManaged: true,
+      });
+      render(
+        <MemoryRouter>
+          <Peers />
+        </MemoryRouter>
+      );
+      await waitFor(() => {
+        expect(screen.getByText(/Connectable/i)).toBeInTheDocument();
+        expect(screen.getByText(/reachable at external URL/i)).toBeInTheDocument();
+      });
+    });
+
+    it('does not show reachable at external URL when connectable is false', async () => {
       setupMocks({
         ...defaultNetworking,
         externalUrl: 'http://1.2.3.4:3000',

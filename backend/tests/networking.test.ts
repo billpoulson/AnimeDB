@@ -117,6 +117,37 @@ describe('Networking API', () => {
     });
   });
 
+  describe('Connectable status integration', () => {
+    it('GET /networking returns connectable false by default', async () => {
+      mockGetUpnpState.mockReturnValue({ active: false, externalIp: null, externalUrl: null, error: null });
+      mockGetExternalUrl.mockReturnValue('http://example.com:3000');
+
+      const res = await request.get('/api/networking');
+
+      expect(res.status).toBe(200);
+      expect(res.body.connectable).toBe(false);
+    });
+
+    it('PUT connectable then GET reflects status change', async () => {
+      mockGetUpnpState.mockReturnValue({ active: true, externalIp: '1.2.3.4', externalUrl: 'http://1.2.3.4:3000', error: null });
+      mockGetExternalUrl.mockReturnValue('http://1.2.3.4:3000');
+
+      const getBefore = await request.get('/api/networking');
+      expect(getBefore.body.connectable).toBe(false);
+
+      const putRes = await request.put('/api/networking/connectable').send({ connectable: true });
+      expect(putRes.status).toBe(200);
+      expect(putRes.body.connectable).toBe(true);
+
+      const getAfter = await request.get('/api/networking');
+      expect(getAfter.body.connectable).toBe(true);
+
+      await request.put('/api/networking/connectable').send({ connectable: false });
+      const getFinal = await request.get('/api/networking');
+      expect(getFinal.body.connectable).toBe(false);
+    });
+  });
+
   describe('PUT /api/networking/external-url', () => {
     it('sets a manual external URL', async () => {
       mockGetExternalUrl.mockReturnValue('http://5.6.7.8:3000');
