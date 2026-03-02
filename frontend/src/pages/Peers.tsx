@@ -7,6 +7,7 @@ import {
   getLibraries,
 } from '../api/client';
 import RemoteLibrary from '../components/RemoteLibrary';
+import { copyToClipboard } from '../utils/clipboard';
 
 export default function Peers() {
   const [networking, setNetworking] = useState<NetworkingInfo | null>(null);
@@ -54,7 +55,7 @@ export default function Peers() {
     setUrlSaving(true);
     try {
       const result = await setExternalUrl(urlInput.trim() || null);
-      setNetworking((prev) => prev ? { ...prev, externalUrl: result.externalUrl } : prev);
+      setNetworking((prev) => prev ? { ...prev, externalUrl: result.externalUrl, remotelyManaged: result.remotelyManaged ?? false } : prev);
     } finally {
       setUrlSaving(false);
     }
@@ -83,9 +84,8 @@ export default function Peers() {
     }
   };
 
-  const handleCopy = () => {
-    if (networking?.externalUrl) {
-      navigator.clipboard.writeText(networking.externalUrl);
+  const handleCopy = async () => {
+    if (networking?.externalUrl && (await copyToClipboard(networking.externalUrl))) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
@@ -203,69 +203,108 @@ export default function Peers() {
                 <span className="text-sm text-gray-400 w-28 shrink-0">Instance name</span>
                 <span className="text-sm">{networking.instanceName}</span>
               </div>
-              <div className="flex items-center gap-3">
-                <span className="text-sm text-gray-400 w-28 shrink-0">UPnP</span>
-                <div className="flex-1 flex items-center gap-2 flex-wrap">
-                  {networking.upnp.active ? (
-                    <span className="text-xs text-green-400 flex items-center gap-1">
-                      <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-                      Active ({networking.upnp.externalIp}:{networking.upnp.externalPort})
-                    </span>
-                  ) : networking.upnp.error ? (
-                    <span className="text-xs text-yellow-400">
-                      Unavailable: {networking.upnp.error}
-                      {' '}<a href="/docs#upnp-troubleshooting" className="underline hover:text-yellow-300">Troubleshoot</a>
-                    </span>
-                  ) : (
-                    <span className="text-xs text-gray-500">Not active (manual URL set)</span>
-                  )}
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <input
-                      value={altPort}
-                      onChange={(e) => { setAltPort(e.target.value.replace(/\D/g, '')); setUpnpRetryError(null); }}
-                      placeholder="Port"
-                      className="w-20 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    />
-                    <button
-                      onClick={handleUpnpRetry}
-                      disabled={upnpRetrying}
-                      className="text-xs px-2.5 py-1 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors disabled:opacity-50"
-                    >
-                      {upnpRetrying ? 'Retrying...' : altPort.trim() ? 'Try port' : 'Retry UPnP'}
-                    </button>
-                    {upnpRetryError && (
-                      <span className="text-xs text-red-400">{upnpRetryError}</span>
+              {!networking.remotelyManaged && (
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-gray-400 w-28 shrink-0">UPnP</span>
+                  <div className="flex-1 flex items-center gap-2 flex-wrap">
+                    {networking.upnp.active ? (
+                      <span className="text-xs text-green-400 flex items-center gap-1">
+                        <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                        Active ({networking.upnp.externalIp}:{networking.upnp.externalPort})
+                      </span>
+                    ) : networking.upnp.error ? (
+                      <span className="text-xs text-yellow-400">
+                        Unavailable: {networking.upnp.error}
+                        {' '}<a href="/docs#upnp-troubleshooting" className="underline hover:text-yellow-300">Troubleshoot</a>
+                      </span>
+                    ) : (
+                      <span className="text-xs text-gray-500">Not active (manual URL set)</span>
                     )}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <input
+                        value={altPort}
+                        onChange={(e) => { setAltPort(e.target.value.replace(/\D/g, '')); setUpnpRetryError(null); }}
+                        placeholder="Port"
+                        className="w-20 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                      <button
+                        onClick={handleUpnpRetry}
+                        disabled={upnpRetrying}
+                        className="text-xs px-2.5 py-1 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors disabled:opacity-50"
+                      >
+                        {upnpRetrying ? 'Retrying...' : altPort.trim() ? 'Try port' : 'Retry UPnP'}
+                      </button>
+                      {upnpRetryError && (
+                        <span className="text-xs text-red-400">{upnpRetryError}</span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
               <div className="flex items-center gap-3">
                 <span className="text-sm text-gray-400 w-28 shrink-0">External URL</span>
-                <div className="flex-1 flex items-center gap-2">
+                <div className="flex-1 flex items-center gap-2 flex-wrap">
                   <input
                     value={urlInput}
                     onChange={(e) => setUrlInput(e.target.value)}
                     placeholder="http://your-ip:3000"
-                    className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    disabled={networking.remotelyManaged}
+                    readOnly={networking.remotelyManaged}
+                    className={`flex-1 min-w-0 bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 ${networking.remotelyManaged ? 'opacity-60 cursor-not-allowed' : ''}`}
                   />
-                  <button
-                    onClick={handleSetUrl}
-                    disabled={urlSaving}
-                    className="text-xs px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50"
-                  >
-                    {urlSaving ? 'Saving...' : 'Set'}
-                  </button>
-                  {networking.externalUrl && (
-                    <button
-                      onClick={handleCopy}
-                      className="text-xs px-3 py-1.5 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors"
-                    >
-                      {copied ? 'Copied!' : 'Copy'}
-                    </button>
+                  {networking.remotelyManaged ? (
+                    <>
+                      <span className="text-xs text-blue-400 flex items-center gap-1 shrink-0">
+                        <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" /></svg>
+                        Managed by UPnP helper
+                      </span>
+                      {networking.externalUrl && (
+                        <button
+                          onClick={handleCopy}
+                          className="text-xs px-3 py-1.5 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors shrink-0"
+                        >
+                          {copied ? 'Copied!' : 'Copy'}
+                        </button>
+                      )}
+                      <button
+                        onClick={async () => {
+                          setUrlSaving(true);
+                          try {
+                            const result = await setExternalUrl(urlInput.trim() || null);
+                            setNetworking((prev) => prev ? { ...prev, externalUrl: result.externalUrl, remotelyManaged: false } : prev);
+                          } finally {
+                            setUrlSaving(false);
+                          }
+                        }}
+                        disabled={urlSaving}
+                        className="text-xs px-2 py-1 rounded bg-gray-700 hover:bg-gray-600 text-gray-400 hover:text-gray-300 transition-colors shrink-0"
+                        title="Take manual control of the external URL"
+                      >
+                        Override
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={handleSetUrl}
+                        disabled={urlSaving}
+                        className="text-xs px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50 shrink-0"
+                      >
+                        {urlSaving ? 'Saving...' : 'Set'}
+                      </button>
+                      {networking.externalUrl && (
+                        <button
+                          onClick={handleCopy}
+                          className="text-xs px-3 py-1.5 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors shrink-0"
+                        >
+                          {copied ? 'Copied!' : 'Copy'}
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
-              {!networking.externalUrl && (
+              {!networking.externalUrl && !networking.remotelyManaged && (
                 <p className="text-xs text-yellow-400 ml-[7.5rem]">
                   No external URL detected. Set one manually or enable UPnP.
                   {' '}<a href="/docs#upnp-troubleshooting" className="underline hover:text-yellow-300">See troubleshooting guide</a>
@@ -308,10 +347,15 @@ export default function Peers() {
                     {createdKeyResult.connectionString}
                   </code>
                   <button
-                    onClick={() => navigator.clipboard.writeText(createdKeyResult.connectionString!)}
+                    onClick={async () => {
+                      if (await copyToClipboard(createdKeyResult.connectionString!)) {
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 2000);
+                      }
+                    }}
                     className="text-xs px-3 py-1.5 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors shrink-0"
                   >
-                    Copy
+                    {copied ? 'Copied!' : 'Copy'}
                   </button>
                 </div>
                 <details className="text-xs">
@@ -321,10 +365,15 @@ export default function Peers() {
                       {createdKeyResult.key}
                     </code>
                     <button
-                      onClick={() => navigator.clipboard.writeText(createdKeyResult.key)}
+                      onClick={async () => {
+                        if (await copyToClipboard(createdKeyResult.key)) {
+                          setCopied(true);
+                          setTimeout(() => setCopied(false), 2000);
+                        }
+                      }}
                       className="text-xs px-3 py-1.5 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors shrink-0"
                     >
-                      Copy
+                      {copied ? 'Copied!' : 'Copy'}
                     </button>
                   </div>
                 </details>
@@ -337,10 +386,15 @@ export default function Peers() {
                     {createdKeyResult.key}
                   </code>
                   <button
-                    onClick={() => navigator.clipboard.writeText(createdKeyResult.key)}
+                    onClick={async () => {
+                      if (await copyToClipboard(createdKeyResult.key)) {
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 2000);
+                      }
+                    }}
                     className="text-xs px-3 py-1.5 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors shrink-0"
                   >
-                    Copy
+                    {copied ? 'Copied!' : 'Copy'}
                   </button>
                 </div>
                 <p className="text-xs text-yellow-400">

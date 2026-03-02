@@ -1,10 +1,26 @@
 import { Router, Request, Response } from 'express';
 import { config } from '../config';
 import { getUpnpState, getExternalUrl, setManualExternalUrl, retryUpnp } from '../services/upnp';
-import { getInstanceId } from '../db';
+import { getDb, getInstanceId } from '../db';
 import { announceToAllPeers } from '../services/announce';
 
 const router = Router();
+const REMOTELY_MANAGED_KEY = 'external_url_remotely_managed';
+
+function getRemotelyManaged(): boolean {
+  const db = getDb();
+  const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(REMOTELY_MANAGED_KEY) as { value: string } | undefined;
+  return row?.value === '1';
+}
+
+function setRemotelyManaged(value: boolean): void {
+  const db = getDb();
+  if (value) {
+    db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(REMOTELY_MANAGED_KEY, '1');
+  } else {
+    db.prepare('DELETE FROM settings WHERE key = ?').run(REMOTELY_MANAGED_KEY);
+  }
+}
 
 router.get('/', (_req: Request, res: Response) => {
   const upnp = getUpnpState();
@@ -12,6 +28,7 @@ router.get('/', (_req: Request, res: Response) => {
     instanceId: getInstanceId(),
     instanceName: config.instanceName,
     externalUrl: getExternalUrl(),
+    remotelyManaged: getRemotelyManaged(),
     upnp: {
       active: upnp.active,
       externalIp: upnp.externalIp,
@@ -22,7 +39,7 @@ router.get('/', (_req: Request, res: Response) => {
 });
 
 router.put('/external-url', (req: Request, res: Response) => {
-  const { url } = req.body;
+  const { url, remotelyManaged } = req.body;
 
   if (url !== null && url !== undefined && typeof url !== 'string') {
     return res.status(400).json({ error: 'url must be a string or null' });
@@ -30,12 +47,13 @@ router.put('/external-url', (req: Request, res: Response) => {
 
   const cleanUrl = url ? url.replace(/\/+$/, '') : null;
   setManualExternalUrl(cleanUrl);
+  setRemotelyManaged(remotelyManaged === true);
 
   if (cleanUrl) {
     announceToAllPeers().catch(() => {});
   }
 
-  res.json({ externalUrl: getExternalUrl() });
+  res.json({ externalUrl: getExternalUrl(), remotelyManaged: getRemotelyManaged() });
 });
 
 router.post('/upnp-retry', async (req: Request, res: Response) => {

@@ -7,6 +7,7 @@ import {
   type PlexServer,
   type PlexSection,
 } from '../api/client';
+import { copyToClipboard } from '../utils/clipboard';
 
 type LinkStep = 'idle' | 'pin' | 'server-pick';
 
@@ -259,7 +260,7 @@ export default function SettingsPlex() {
               </code>
               <button
                 type="button"
-                onClick={() => navigator.clipboard.writeText(linkPin.code)}
+                onClick={() => copyToClipboard(linkPin.code)}
                 className="text-xs px-2 py-1 rounded bg-gray-700 hover:bg-gray-600 text-gray-300"
               >
                 Copy

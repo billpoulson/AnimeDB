@@ -17,7 +17,7 @@ irm https://raw.githubusercontent.com/billpoulson/AnimeDB/main/install.ps1 | iex
 If the CDN is serving a stale version, use the versioned script instead:
 
 ```powershell
-irm https://raw.githubusercontent.com/billpoulson/AnimeDB/main/install_v33.ps1 | iex
+irm https://raw.githubusercontent.com/billpoulson/AnimeDB/main/install_v34.ps1 | iex
 ```
 
 **Bash (Linux / macOS):**
@@ -64,7 +64,9 @@ By default the container uses bridge networking with port **3000** mapped to the
 
 For **UPnP auto-discovery** (Linux only), set `NETWORK_MODE=host` in your `.env` file. This gives the container direct LAN access so it can discover your router and create port mappings automatically.
 
-On **Windows/Mac** with Docker Desktop, UPnP cannot work through Docker's VM. Set `EXTERNAL_URL` in `.env` manually if you need peer federation.
+On **Windows/Mac** with Docker Desktop, UPnP cannot work through Docker's VM. Options:
+- **Windows:** Use the [UPnP Tray app](tools/upnp-tray/README.md) — a small system tray app that runs on the host and pushes the external URL to AnimeDB.
+- **Otherwise:** Set `EXTERNAL_URL` in `.env` manually.
 
 ### 2. Start the application
 

@@ -6,6 +6,7 @@ All notable changes to AnimeDB will be documented in this file.
 
 ### Added
 
+- **AnimeDB UPnP Tray (Windows)** — System tray app for Docker on Windows. Runs on the host, discovers the router via UPnP, and pushes the external URL to AnimeDB. Login support when AnimeDB has auth enabled. See `tools/upnp-tray/README.md`.
 - **Test coverage for auto-sync** — Frontend Peers tests for auto-sync toggle and library picker; backend peerSync unit tests; Docker p2p integration tests for PATCH auto_replicate.
 - **Auto-sync peer library** — Enable Auto-sync on a linked peer to automatically pull new content as it is added on the remote. Polls every 15 minutes (configurable via `PEER_SYNC_INTERVAL_MINUTES`). Optionally choose a target library for auto-move.
 - **Plex Section Picker** — Fetches library sections from the Plex server and replaces manual section ID inputs with dropdowns. Includes "Refresh sections" button, 15-minute auto-refresh, and per-library section override in the library form.
@@ -20,6 +21,7 @@ All notable changes to AnimeDB will be documented in this file.
 
 ### Fixed
 
+- **Copy to clipboard** — Connection string, API key, and Plex PIN copy now work over HTTP (non-HTTPS) using execCommand fallback when Clipboard API is unavailable.
 - **UPnP Retry** — Retry now creates a fresh UPnP client instead of reusing a stale one from a failed discovery, so retries can succeed when the initial attempt times out. Frontend now shows error messages when retry fails or when an invalid port is entered.
 - **Plex Section Picker** — Backend `/plex/sections` API now implemented; was returning HTML instead of JSON.
 - **Docker in-app update** — Fixes "Command failed: npx tsc" error when updating from the Settings screen (Express 5 type compatibility).

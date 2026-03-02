@@ -296,6 +296,7 @@ export interface NetworkingInfo {
   instanceId: string;
   instanceName: string;
   externalUrl: string | null;
+  remotelyManaged?: boolean;
   upnp: {
     active: boolean;
     externalIp: string | null;
@@ -309,8 +310,8 @@ export async function getNetworking(): Promise<NetworkingInfo> {
   return res.data;
 }
 
-export async function setExternalUrl(url: string | null): Promise<{ externalUrl: string | null }> {
-  const res = await api.put('/networking/external-url', { url });
+export async function setExternalUrl(url: string | null): Promise<{ externalUrl: string | null; remotelyManaged?: boolean }> {
+  const res = await api.put('/networking/external-url', { url, remotelyManaged: false });
   return res.data;
 }
 

@@ -194,7 +194,8 @@ export default function Docs() {
         </p>
         <ul>
           <li><strong>Linux:</strong> Add <code>network_mode: host</code> to your <code>docker-compose.yml</code>. This gives the container direct LAN access.</li>
-          <li><strong>Docker Desktop (Windows/Mac):</strong> UPnP <strong>will not work</strong> because Docker Desktop runs containers inside a Linux VM that has no direct LAN access. Skip to option 5 below.</li>
+          <li><strong>Docker Desktop (Windows):</strong> Use the <strong>AnimeDB UPnP Tray</strong> app (<code>tools/upnp-tray/</code>) — a small system tray app that runs on the host, does UPnP, and pushes the external URL to AnimeDB.</li>
+          <li><strong>Docker Desktop (Mac):</strong> UPnP will not work. Skip to option 5 below.</li>
         </ul>
 
         <h3 className="text-lg font-medium mt-4">3. Double NAT</h3>
