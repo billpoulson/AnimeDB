@@ -112,10 +112,9 @@ function updateContextMenu() {
 
 function checkForUpdates() {
   if (!app.isPackaged) return;
-  const { autoUpdater } = require('electron-updater');
   updateStatus = 'checking';
   updateContextMenu();
-  autoUpdater.checkForUpdates();
+  runUpdateCheck();
 }
 
 function showLoginWindow(urlToPushAfter) {
@@ -242,6 +241,57 @@ function cleanup() {
   upnp.unmap(upnp.mappedPort).catch(() => {});
 }
 
+const TRAY_RELEASE_TAG_PREFIX = 'upnp-tray-v';
+const GITHUB_RELEASES_API = 'https://api.github.com/repos/billpoulson/AnimeDB/releases?per_page=100';
+
+function parseSemver(tag) {
+  const match = tag.replace(TRAY_RELEASE_TAG_PREFIX, '').match(/^(\d+)\.(\d+)\.(\d+)/);
+  return match ? [parseInt(match[1], 10), parseInt(match[2], 10), parseInt(match[3], 10)] : null;
+}
+
+function compareSemver(a, b) {
+  const va = parseSemver(a);
+  const vb = parseSemver(b);
+  if (!va || !vb) return 0;
+  for (let i = 0; i < 3; i++) {
+    if (va[i] !== vb[i]) return va[i] > vb[i] ? 1 : -1;
+  }
+  return 0;
+}
+
+async function getLatestTrayReleaseTag() {
+  try {
+    const res = await fetch(GITHUB_RELEASES_API, {
+      headers: { Accept: 'application/vnd.github.v3+json' },
+    });
+    if (!res.ok) return null;
+    const releases = await res.json();
+    const trayTags = releases
+      .filter((r) => r.tag_name && r.tag_name.startsWith(TRAY_RELEASE_TAG_PREFIX))
+      .map((r) => r.tag_name);
+    if (trayTags.length === 0) return null;
+    trayTags.sort((a, b) => -compareSemver(a, b));
+    return trayTags[0];
+  } catch {
+    return null;
+  }
+}
+
+async function runUpdateCheck() {
+  if (!app.isPackaged) return;
+  const latestTag = await getLatestTrayReleaseTag();
+  if (!latestTag) {
+    updateStatus = 'not-available';
+    updateContextMenu();
+    setTimeout(() => { updateStatus = null; updateContextMenu(); }, 3000);
+    return;
+  }
+  const { autoUpdater } = require('electron-updater');
+  const feedUrl = `https://github.com/billpoulson/AnimeDB/releases/download/${latestTag}/`;
+  autoUpdater.setFeedURL({ provider: 'generic', url: feedUrl });
+  autoUpdater.checkForUpdatesAndNotify();
+}
+
 function setupAutoUpdater() {
   if (!app.isPackaged) return;
 
@@ -282,7 +332,7 @@ function setupAutoUpdater() {
         if (response === 0) autoUpdater.quitAndInstall(false, true);
       });
   });
-  autoUpdater.on('error', () => {
+  autoUpdater.on('error', (err) => {
     updateStatus = 'error';
     updateContextMenu();
     setTimeout(() => {
@@ -291,7 +341,7 @@ function setupAutoUpdater() {
     }, 3000);
   });
 
-  autoUpdater.checkForUpdatesAndNotify();
+  runUpdateCheck();
 }
 
 app.whenReady().then(() => {

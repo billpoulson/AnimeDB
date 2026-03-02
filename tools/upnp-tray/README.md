@@ -49,7 +49,18 @@ Creates an installer in `dist/`. You can distribute this so users don't need Nod
 
 ## Auto-Update
 
-The tray app checks for updates on startup and via "Check for updates" in the context menu. Updates are delivered from GitHub Releases. When an update is downloaded, you're prompted to restart to install. Release tags match the version (e.g. tag `1.0.1` for version 1.0.1).
+The tray app checks for updates on startup and via "Check for updates" in the context menu. Updates are delivered from GitHub Releases. The tray looks for releases whose **tag starts with `upnp-tray-v`** (e.g. `upnp-tray-v1.0.2`) so it does not conflict with the main AnimeDB app releases in the same repo. When an update is downloaded, you're prompted to restart to install.
+
+### Publishing a Tray Update
+
+1. Bump `version` in `package.json` (e.g. to `1.0.3`).
+2. Build: `npm run build`
+3. Create a GitHub release at https://github.com/billpoulson/AnimeDB/releases/new:
+   - **Tag:** `upnp-tray-v1.0.3` (prefix `upnp-tray-v` + version, no space)
+   - **Upload assets:** `dist/AnimeDB UPnP Setup 1.0.3.exe` and `dist/latest.yml`
+   - Publish (or save as draft)
+
+Existing tray installs will find this update when they run "Check for updates".
 
 ### Testing Auto-Update
 
@@ -59,17 +70,14 @@ The tray app checks for updates on startup and via "Check for updates" in the co
    .\dist\win-unpacked\AnimeDB UPnP.exe
    ```
 
-2. Build a test update (creates 1.0.1 artifacts, restores package.json):
+2. Build a test update (creates new-version artifacts, restores package.json):
    ```powershell
    npm run build-test-update
    ```
 
-3. Create a GitHub release at https://github.com/billpoulson/AnimeDB/releases/new:
-   - Tag: `1.0.1` (no "v" prefix)
-   - Upload: `dist/AnimeDB UPnP Setup 1.0.1.exe` and `dist/latest.yml`
-   - Publish (or save as draft)
+3. Create a GitHub release with tag `upnp-tray-vX.Y.Z` (e.g. `upnp-tray-v1.0.2`) and upload the Setup exe and `latest.yml` from `dist/`.
 
-4. With the 1.0.0 app running from step 1, right-click the tray icon and choose **Check for updates**. The app should find 1.0.1, download it, and prompt to restart.
+4. With the older app running from step 1, right-click the tray icon and choose **Check for updates**. The app should find the new version, download it, and prompt to restart.
 
 ## How It Works
 

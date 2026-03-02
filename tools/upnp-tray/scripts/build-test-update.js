@@ -64,5 +64,6 @@ if (setupNew !== srcSetup) fs.copyFileSync(path.join(tempDir, path.basename(srcS
 fs.rmSync(tempDir, { recursive: true });
 
 console.log(`\nDone!`);
-console.log(`  - dist/AnimeDB-UPnP-Setup-${newVersion}.exe and dist/latest.yml -> for GitHub release`);
+console.log(`  - Create GitHub release with tag: upnp-tray-v${newVersion}`);
+console.log(`  - Upload dist/AnimeDB UPnP Setup ${newVersion}.exe and dist/latest.yml`);
 console.log(`  - dist/win-unpacked/ = ${oldVersion} app (run this to test Check for updates)`);

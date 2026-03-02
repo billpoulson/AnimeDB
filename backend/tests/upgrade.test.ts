@@ -40,7 +40,10 @@ async function waitForServer(port: number, timeoutMs = 15000): Promise<boolean> 
   return false;
 }
 
-describe('upgrade', () => {
+// Skip in Docker/CI: upgrade test needs git history and a full build; UPnP cannot be tested in containers.
+const skipInDockerOrCI = process.env.CI === 'true' || process.env.DOCKER === '1';
+
+describe.skipIf(skipInDockerOrCI)('upgrade', () => {
   let tmpDir: string;
   let dataDir: string;
   let oldBackendDist: string;

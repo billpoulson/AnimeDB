@@ -4,7 +4,14 @@ All notable changes to AnimeDB will be documented in this file.
 
 ## [Unreleased]
 
-_No unreleased changes._
+### Changed
+
+- **Upgrade test** — Skipped when running in Docker or CI (`CI=true` or `DOCKER=1`); UPnP cannot be tested in containers and the upgrade test requires git history.
+
+### Added
+
+- **E2E: external URL and connectable** — Playwright tests for Peers: external URL from UPnP tray (input shows URL, “Managed by UPnP helper”), connectable indicator in tray flow and UPnP section, and UPnP active display with external port.
+- **UPnP tray** — README, main, package.json, and build script updates for tray releases and update checks.
 
 ## [2026-03-03]
 

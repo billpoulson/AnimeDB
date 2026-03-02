@@ -134,12 +134,12 @@ test.describe('Peers - UPnP error', () => {
   test('does not show troubleshoot link when UPnP is active', async ({ page }) => {
     await mockPeersPageApis(page, {
       externalUrl: 'http://1.2.3.4:3000',
-      upnp: { active: true, externalIp: '1.2.3.4', error: null },
+      upnp: { active: true, externalIp: '1.2.3.4', externalPort: 3000, error: null },
     });
 
     await page.goto('/peers');
 
-    await expect(page.getByText('Active (1.2.3.4)')).toBeVisible();
+    await expect(page.getByText('Active (1.2.3.4:3000)')).toBeVisible();
     await expect(page.getByRole('link', { name: 'Troubleshoot' })).not.toBeVisible();
   });
 
@@ -224,6 +224,69 @@ test.describe('Peers - Connectable status', () => {
     await page.goto('/peers');
 
     await expect(page.getByText('Managed by UPnP helper')).toBeVisible();
+    await expect(page.getByText('Yes — reachable at external URL')).toBeVisible();
+  });
+});
+
+test.describe('Peers - External URL from UPnP tray and connectable', () => {
+  test('displays external URL in input when API returns it (tray flow)', async ({ page }) => {
+    const trayUrl = 'http://192.168.1.100:3000';
+    await mockPeersPageApis(page, {
+      externalUrl: trayUrl,
+      remotelyManaged: true,
+      connectable: false,
+      upnp: { active: false, externalIp: null, error: null },
+    });
+
+    await page.goto('/peers');
+
+    await expect(page.getByText('Managed by UPnP helper')).toBeVisible();
+    const urlInput = page.getByPlaceholder('http://your-ip:3000');
+    await expect(urlInput).toHaveValue(trayUrl);
+    await expect(urlInput).toBeDisabled();
+  });
+
+  test('displays connectable indicator when API returns connectable true (tray flow)', async ({ page }) => {
+    await mockPeersPageApis(page, {
+      externalUrl: 'http://1.2.3.4:3000',
+      connectable: true,
+      remotelyManaged: true,
+      upnp: { active: false, externalIp: null, error: null },
+    });
+
+    await page.goto('/peers');
+
+    await expect(page.getByText('Managed by UPnP helper')).toBeVisible();
+    await expect(page.getByText('Yes — reachable at external URL')).toBeVisible();
+    await expect(page.getByText('Connectable', { exact: false }).first()).toBeVisible();
+  });
+
+  test('shows Connectable: No when tray-managed but not connectable', async ({ page }) => {
+    await mockPeersPageApis(page, {
+      externalUrl: 'http://1.2.3.4:3000',
+      connectable: false,
+      remotelyManaged: true,
+      upnp: { active: false, externalIp: null, error: null },
+    });
+
+    await page.goto('/peers');
+
+    await expect(page.getByText('Managed by UPnP helper')).toBeVisible();
+    await expect(page.getByText('Yes — reachable at external URL')).not.toBeVisible();
+  });
+
+  test('UPnP section shows connectable when not remotely managed', async ({ page }) => {
+    await mockPeersPageApis(page, {
+      externalUrl: 'http://1.2.3.4:3000',
+      connectable: true,
+      remotelyManaged: false,
+      upnp: { active: true, externalIp: '1.2.3.4', externalPort: 3000, error: null },
+    });
+
+    await page.goto('/peers');
+
+    await expect(page.getByText('Active (1.2.3.4:3000)')).toBeVisible();
+    await expect(page.getByText('Connectable:', { exact: false })).toBeVisible();
     await expect(page.getByText('Yes — reachable at external URL')).toBeVisible();
   });
 });
