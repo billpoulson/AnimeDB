@@ -28,7 +28,7 @@ A small Windows system tray app that handles UPnP when AnimeDB runs in Docker. D
    - **Login** — Enter your AnimeDB password (required when auth is enabled)
    - **Exit** — Quit and remove the port mapping
 
-4. If AnimeDB has a password set, you'll see "Authentication required". Click **Login**, enter your password. The app creates a long-lived API key ("UPnP Tray") and stores it — you won't be prompted again even if you log out from the web UI.
+4. If AnimeDB has a password set, you'll see "Authentication required". Click **Login**, enter your password. The app creates a long-lived API key ("UPnP Tray") with networking-only permission and stores it — you won't be prompted again even if you log out from the web UI. The key can only manage the external URL; it cannot access downloads, peers, or other data.
 
 ## Configuration
 
@@ -47,6 +47,30 @@ npm run build
 
 Creates an installer in `dist/`. You can distribute this so users don't need Node.js.
 
+## Auto-Update
+
+The tray app checks for updates on startup and via "Check for updates" in the context menu. Updates are delivered from GitHub Releases. When an update is downloaded, you're prompted to restart to install. Release tags match the version (e.g. tag `1.0.1` for version 1.0.1).
+
+### Testing Auto-Update
+
+1. Build and run the current version:
+   ```powershell
+   npm run build
+   .\dist\win-unpacked\AnimeDB UPnP.exe
+   ```
+
+2. Build a test update (creates 1.0.1 artifacts, restores package.json):
+   ```powershell
+   npm run build-test-update
+   ```
+
+3. Create a GitHub release at https://github.com/billpoulson/AnimeDB/releases/new:
+   - Tag: `1.0.1` (no "v" prefix)
+   - Upload: `dist/AnimeDB UPnP Setup 1.0.1.exe` and `dist/latest.yml`
+   - Publish (or save as draft)
+
+4. With the 1.0.0 app running from step 1, right-click the tray icon and choose **Check for updates**. The app should find 1.0.1, download it, and prompt to restart.
+
 ## How It Works
 
 1. On startup, the app discovers your router via UPnP (multicast on the LAN).
@@ -54,6 +78,14 @@ Creates an installer in `dist/`. You can distribute this so users don't need Nod
 3. Calls `PUT http://localhost:3000/api/networking/external-url` with the discovered URL.
 4. Renews the mapping every 20 minutes (router leases typically expire in 1 hour).
 5. On exit, removes the port mapping.
+
+## Tray Icon Colors
+
+The tray icon reflects connection status:
+- **Green** — Connected and working (UPnP mapped, URL pushed to AnimeDB)
+- **Red** — Connection error (UPnP failed, AnimeDB unreachable, etc.)
+- **Blue** — Unconfigured or starting
+- **Yellow** — Authenticating (login window open)
 
 ## Troubleshooting
 

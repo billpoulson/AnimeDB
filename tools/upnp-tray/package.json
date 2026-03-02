@@ -1,12 +1,14 @@
 {
   "name": "animedb-upnp-tray",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "Windows system tray app for UPnP when running AnimeDB in Docker",
   "author": "AnimeDB",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder --win"
+    "build": "electron-builder --win",
+    "generate-icons": "node scripts/generate-status-icons.js",
+    "build-test-update": "node scripts/build-test-update.js"
   },
   "build": {
     "appId": "com.animedb.upnp-tray",
@@ -18,9 +20,17 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "billpoulson",
+      "repo": "AnimeDB",
+      "vPrefixedTagName": false,
+      "releaseType": "draft"
     }
   },
   "dependencies": {
+    "electron-updater": "^6.3.9",
     "nat-upnp-2": "^3.0.3"
   },
   "devDependencies": {

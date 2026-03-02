@@ -13,6 +13,7 @@ export default function Docs() {
           <li><a href="#playback" className="text-blue-400 hover:text-blue-300">Video Playback</a></li>
           <li><a href="#plex" className="text-blue-400 hover:text-blue-300">Plex Integration</a></li>
           <li><a href="#federation" className="text-blue-400 hover:text-blue-300">Federation &amp; Peers</a></li>
+          <li><a href="#api-key-permissions" className="text-blue-400 hover:text-blue-300">API Key Permissions</a></li>
           <li><a href="#networking" className="text-blue-400 hover:text-blue-300">Networking &amp; UPnP</a></li>
           <li><a href="#upnp-troubleshooting" className="text-blue-400 hover:text-blue-300">UPnP Troubleshooting</a></li>
           <li><a href="#self-healing" className="text-blue-400 hover:text-blue-300">Self-Healing Mesh</a></li>
@@ -127,7 +128,7 @@ export default function Docs() {
         <h3 className="text-lg font-medium mt-4">Sharing your instance</h3>
         <ol>
           <li>Go to <strong>Peers &rarr; Networking</strong> and ensure your instance has an External URL (set manually or auto-detected via UPnP).</li>
-          <li>Under <strong>API Keys</strong>, click <strong>Generate</strong> to create a key. Give it a descriptive label like the name of the person you&rsquo;re sharing with.</li>
+          <li>Under <strong>API Keys</strong>, click <strong>Generate</strong> to create a key. Give it a descriptive label like the name of the person you&rsquo;re sharing with. Optionally choose permissions (e.g. <em>Federation sync only</em>) to limit what the peer can do.</li>
           <li>Copy the key immediately &mdash; it is only shown once. Send the key and your External URL to the other person.</li>
         </ol>
 
@@ -148,6 +149,16 @@ export default function Docs() {
 
         <h3 className="text-lg font-medium mt-4">Revoking access</h3>
         <p>Delete an API key under <strong>API Keys</strong> to immediately revoke a peer&rsquo;s access to your instance. Delete a peer under <strong>Linked Instances</strong> to stop connecting to them.</p>
+
+        <h3 id="api-key-permissions" className="text-lg font-medium mt-6">API Key Permissions</h3>
+        <p>When generating a key, you can restrict what it can do. This lets you share access safely:</p>
+        <ul>
+          <li><strong>Full access</strong> &mdash; Default. The key can do everything (manage downloads, peers, settings, etc.).</li>
+          <li><strong>Federation sync only</strong> &mdash; The peer can browse your library and pull/stream content, but cannot modify your collection, add peers, or change settings.</li>
+          <li><strong>Networking only</strong> &mdash; For tools like the UPnP Tray app: can only manage the external URL, nothing else.</li>
+          <li><strong>Custom</strong> &mdash; Pick specific permissions: networking, federation, peers, downloads, libraries, keys, settings, system.</li>
+        </ul>
+        <p className="text-xs text-gray-500 mt-2">Existing keys without permissions are treated as full access. The UPnP Tray app creates a networking-only key automatically.</p>
       </section>
 
       {/* ── Networking ── */}
