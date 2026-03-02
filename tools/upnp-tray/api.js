@@ -66,24 +66,61 @@ function getAuthHeaders() {
 }
 
 /**
- * Login with password. Returns token on success.
+ * Login with password. Creates a long-lived API key for the tray and stores it.
+ * API keys survive web UI logout, so the user won't be prompted again.
  */
 async function login(password) {
   try {
-    const res = await fetch(`${BASE_URL}/api/auth/login`, {
+    const loginRes = await fetch(`${BASE_URL}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ password }),
     });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      return { success: false, error: data.error || `HTTP ${res.status}` };
+    const loginData = await loginRes.json().catch(() => ({}));
+    if (!loginRes.ok) {
+      return { success: false, error: loginData.error || `HTTP ${loginRes.status}` };
     }
-    if (data.token) {
-      saveToken(data.token);
-      return { success: true, token: data.token };
+    const sessionToken = loginData.token;
+    if (!sessionToken) {
+      return { success: false, error: 'No token in response' };
     }
-    return { success: false, error: 'No token in response' };
+
+    // Remove any existing UPnP Tray keys to avoid accumulation
+    const listRes = await fetch(`${BASE_URL}/api/keys`, {
+      headers: { Authorization: `Bearer ${sessionToken}` },
+    });
+    if (listRes.ok) {
+      const keys = await listRes.json().catch(() => []);
+      for (const k of keys) {
+        if (k.label === 'UPnP Tray' && k.id) {
+          await fetch(`${BASE_URL}/api/keys/${k.id}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${sessionToken}` },
+          });
+        }
+      }
+    }
+
+    // Create a long-lived API key for the tray (survives logout)
+    const keyRes = await fetch(`${BASE_URL}/api/keys`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${sessionToken}`,
+      },
+      body: JSON.stringify({ label: 'UPnP Tray' }),
+    });
+    const keyData = await keyRes.json().catch(() => ({}));
+    if (!keyRes.ok) {
+      saveToken(sessionToken);
+      return { success: true, token: sessionToken };
+    }
+    if (keyData.key) {
+      saveToken(keyData.key);
+      return { success: true, token: keyData.key };
+    }
+    saveToken(sessionToken);
+    return { success: true, token: sessionToken };
   } catch (err) {
     return { success: false, error: err.message || 'Connection failed' };
   }

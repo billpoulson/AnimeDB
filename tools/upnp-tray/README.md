@@ -28,7 +28,7 @@ A small Windows system tray app that handles UPnP when AnimeDB runs in Docker. D
    - **Login** — Enter your AnimeDB password (required when auth is enabled)
    - **Exit** — Quit and remove the port mapping
 
-4. If AnimeDB has a password set, you'll see "Authentication required". Click **Login**, enter your password, and the app will store the token for future use.
+4. If AnimeDB has a password set, you'll see "Authentication required". Click **Login**, enter your password. The app creates a long-lived API key ("UPnP Tray") and stores it — you won't be prompted again even if you log out from the web UI.
 
 ## Configuration
 

@@ -6,7 +6,7 @@ All notable changes to AnimeDB will be documented in this file.
 
 ### Added
 
-- **AnimeDB UPnP Tray (Windows)** — System tray app for Docker on Windows. Runs on the host, discovers the router via UPnP, and pushes the external URL to AnimeDB. Login support when AnimeDB has auth enabled. See `tools/upnp-tray/README.md`.
+- **AnimeDB UPnP Tray (Windows)** — System tray app for Docker on Windows. Runs on the host, discovers the router via UPnP, and pushes the external URL to AnimeDB. Login creates a long-lived API key so you won't be prompted again after web logout. See `tools/upnp-tray/README.md`.
 - **Test coverage for auto-sync** — Frontend Peers tests for auto-sync toggle and library picker; backend peerSync unit tests; Docker p2p integration tests for PATCH auto_replicate.
 - **Auto-sync peer library** — Enable Auto-sync on a linked peer to automatically pull new content as it is added on the remote. Polls every 15 minutes (configurable via `PEER_SYNC_INTERVAL_MINUTES`). Optionally choose a target library for auto-move.
 - **Plex Section Picker** — Fetches library sections from the Plex server and replaces manual section ID inputs with dropdowns. Includes "Refresh sections" button, 15-minute auto-refresh, and per-library section override in the library form.
@@ -16,6 +16,7 @@ All notable changes to AnimeDB will be documented in this file.
 
 ### Changed
 
+- **Auth** — API keys accepted for protected routes (e.g. networking). Enables UPnP tray to use a long-lived key instead of session token.
 - **Settings screen** — Sidebar navigation (Libraries, Integrations, Updates, Security) with hash-based section links. Responsive layout: horizontal pill tabs on mobile.
 - **Plex Integration** — Moved to its own screen at Settings → Integrations → Plex. Integrations section shows a Plex icon card linking to the Plex settings page.
 
