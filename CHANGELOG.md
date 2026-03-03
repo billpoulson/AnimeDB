@@ -6,6 +6,17 @@ All notable changes to AnimeDB will be documented in this file.
 
 _No unreleased changes._
 
+## [2026-03-08]
+
+### Changed
+
+- **UPnP tray: connectable** — Treat any HTTP response from the external URL (including 401) as connectable; only network errors (timeout, ECONNREFUSED) count as not connectable. Fixes "Connectable: No" when the server is reachable but `/api/config` requires auth.
+- **UPnP tray: update check** — 25s timeout so the menu does not stay on "Checking for updates..." if electron-updater never responds.
+
+### Added (tooling)
+
+- **Install script** — install_v46.ps1 (replace v45).
+
 ## [2026-03-07]
 
 ### Changed

@@ -48,6 +48,9 @@ let lastConnectable = null;
 // Auto-update state: null | 'checking' | 'available' | 'downloaded' | 'error' | 'not-available'
 let updateStatus = null;
 let updateVersion = null;
+/** Timeout to clear "checking" if electron-updater never emits (e.g. fetch hangs) */
+let updateCheckTimeoutId = null;
+const UPDATE_CHECK_TIMEOUT_MS = 25000;
 
 const ICON_STATUS = {
   green: 'icon-green.png',   // connected and working
@@ -353,6 +356,21 @@ async function runUpdateCheck() {
   const { autoUpdater } = require('electron-updater');
   const feedUrl = `https://github.com/billpoulson/AnimeDB/releases/download/${result.tag}/`;
   autoUpdater.setFeedURL({ provider: 'generic', url: feedUrl });
+
+  if (updateCheckTimeoutId) clearTimeout(updateCheckTimeoutId);
+  updateCheckTimeoutId = setTimeout(() => {
+    updateCheckTimeoutId = null;
+    if (updateStatus === 'checking') {
+      logUpdateCheck('Update check timed out (electron-updater did not respond)');
+      updateStatus = 'error';
+      updateContextMenu();
+      setTimeout(() => {
+        updateStatus = null;
+        updateContextMenu();
+      }, 5000);
+    }
+  }, UPDATE_CHECK_TIMEOUT_MS);
+
   autoUpdater.checkForUpdatesAndNotify();
 }
 
@@ -368,12 +386,14 @@ function setupAutoUpdater() {
     updateContextMenu();
   });
   autoUpdater.on('update-available', (info) => {
+    if (updateCheckTimeoutId) { clearTimeout(updateCheckTimeoutId); updateCheckTimeoutId = null; }
     updateStatus = 'available';
     updateVersion = info.version;
     updateContextMenu();
     tray.setToolTip(`AnimeDB UPnP - Update ${info.version} available`);
   });
   autoUpdater.on('update-not-available', () => {
+    if (updateCheckTimeoutId) { clearTimeout(updateCheckTimeoutId); updateCheckTimeoutId = null; }
     updateStatus = 'not-available';
     updateContextMenu();
     setTimeout(() => {
@@ -397,6 +417,7 @@ function setupAutoUpdater() {
       });
   });
   autoUpdater.on('error', (err) => {
+    if (updateCheckTimeoutId) { clearTimeout(updateCheckTimeoutId); updateCheckTimeoutId = null; }
     const msg = err && (err.message || String(err));
     logUpdateCheck(`Update check (autoUpdater): ${msg || 'unknown error'}`);
     updateStatus = 'error';
