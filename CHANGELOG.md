@@ -6,6 +6,13 @@ All notable changes to AnimeDB will be documented in this file.
 
 _No unreleased changes._
 
+## [2026-03-05]
+
+### Added
+
+- **UPnP tray 1.0.6** — Update check: retries (3 attempts), 15s timeout, clear "Update check failed" vs "No updates available". Update logic moved to testable `updateCheck.js` (no Electron). Unit tests for parseSemver, compareSemver, getLatestTrayTagFromReleases, getLatestTrayReleaseTag (21 tests).
+- **Install script** — install_v42.ps1 (replace v41).
+
 ## [2026-03-04]
 
 ### Added
