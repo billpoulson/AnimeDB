@@ -6,6 +6,23 @@ All notable changes to AnimeDB will be documented in this file.
 
 _No unreleased changes._
 
+## [2026-03-06]
+
+### Added
+
+- **UPnP tray (date versioning)** — Tray release tag and installer use date versioning (e.g. `upnp-tray-v2026.03.06`, `AnimeDB UPnP Setup 2026.03.06.exe`). Update check supports both date and semver tags; release script sets `package.json` version to release date before build.
+- **UPnP tray: update-check logging** — When the update check fails or runs, the tray writes to `%APPDATA%\animedb-upnp-tray\upnp-tray-update.log` (attempt, HTTP status, rate limit, network error, or “no tray releases”). README documents the log path.
+- **UPnP tray: tests for log output** — Unit tests verify the update-check module calls the log callback with the expected messages on success, rate limit, server error, no tray releases, network error, and null fetch.
+
+### Changed
+
+- **ADR** — Tray uses date versioning for tag and artifact; update check supports date and legacy semver tags.
+- **Upgrade test** — Step 3 builds backend only (not root frontend build); failed commands now surface stdout/stderr.
+
+### Added (tooling)
+
+- **Install script** — install_v43.ps1 (replace v42).
+
 ## [2026-03-05]
 
 ### Added

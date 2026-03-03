@@ -10,7 +10,7 @@
     Optional. Same-day sequence number (2, 3, ...). If omitted, the script uses the first
     release of the day (vYYYY.MM.DD) or auto-detects the next N from existing tags.
 .PARAMETER SkipTrayRelease
-    If set, only create the main app release; do not create the tray release (upnp-tray-vX.Y.Z).
+    If set, only create the main app release; do not create the tray release (upnp-tray-vYYYY.MM.DD).
 .PARAMETER DryRun
     Build tray and show what would be done; do not create releases.
 .EXAMPLE
@@ -55,12 +55,22 @@ if ($Sequence -ge 2) {
 }
 $trayDir = Join-Path $RepoRoot "tools\upnp-tray"
 $distDir = Join-Path $trayDir "dist"
+$pkgPath = Join-Path $trayDir "package.json"
+
+# Tray uses date versioning: version and tag match main app date (e.g. 2026.03.05)
+$trayVersion = $dateDot
 
 Write-Host "`n==> Release: $tag (date: $Date)" -ForegroundColor Cyan
-Write-Host "    Repo root: $RepoRoot`n" -ForegroundColor Gray
+Write-Host "    Repo root: $RepoRoot" -ForegroundColor Gray
+Write-Host "    Tray version (date): $trayVersion`n" -ForegroundColor Gray
 
-# 1. Build UPnP Tray
-Write-Host "==> Building UPnP Tray..." -ForegroundColor Cyan
+# 1. Set tray package.json version to date, then build
+Write-Host "==> Building UPnP Tray (version $trayVersion)..." -ForegroundColor Cyan
+$pkgRaw = Get-Content $pkgPath -Raw
+if ($pkgRaw -match '"version":\s*"([^"]*)"') { $previousVersion = $Matches[1] } else { $previousVersion = $null }
+$pkgRaw = $pkgRaw -replace '"version":\s*"[^"]*"', "`"version`": `"$trayVersion`""
+Set-Content $pkgPath -Value $pkgRaw -NoNewline
+
 Push-Location $trayDir
 try {
     npm run build
@@ -69,11 +79,7 @@ try {
     Pop-Location
 }
 
-# 2. Resolve tray version and artifact paths
-$pkgPath = Join-Path $trayDir "package.json"
-$pkg = Get-Content $pkgPath -Raw | ConvertFrom-Json
-$trayVersion = $pkg.version
-
+# 2. Resolve artifact paths (exe name includes date version)
 $setupExe1 = Join-Path $distDir "AnimeDB UPnP Setup $trayVersion.exe"
 $setupExe2 = Join-Path $distDir "AnimeDB-UPnP-Setup-$trayVersion.exe"
 $setupExe = $null
@@ -81,6 +87,10 @@ if (Test-Path $setupExe1) { $setupExe = $setupExe1 }
 elseif (Test-Path $setupExe2) { $setupExe = $setupExe2 }
 if (-not $setupExe) {
     Write-Host "ERROR: Tray setup exe not found (looked for $setupExe1 or $setupExe2)" -ForegroundColor Red
+    if ($previousVersion) {
+        $pkgRaw = (Get-Content $pkgPath -Raw) -replace '"version":\s*"[^"]*"', "`"version`": `"$previousVersion`""
+        Set-Content $pkgPath -Value $pkgRaw -NoNewline
+    }
     exit 1
 }
 
@@ -142,7 +152,7 @@ if (-not $SkipTrayRelease) {
     Write-Host "==> Creating tray release $trayTag (for in-app updater)..." -ForegroundColor Cyan
     gh release create $trayTag `
         --title "UPnP Tray $trayVersion" `
-        --notes "AnimeDB UPnP Tray $trayVersion. Use with Docker on Windows when AnimeDB cannot do UPnP from inside the container." `
+        --notes "AnimeDB UPnP Tray $trayVersion (date versioning). Use with Docker on Windows when AnimeDB cannot do UPnP from inside the container." `
         "$setupExe" `
         "$latestYml"
     if ($LASTEXITCODE -ne 0) {

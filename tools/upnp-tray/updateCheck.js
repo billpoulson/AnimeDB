@@ -1,10 +1,35 @@
 /**
  * Update detection for UPnP tray. Fetches GitHub releases, filters by tray tag prefix, returns latest.
+ * Supports date-version tags (upnp-tray-v2026.03.05) and legacy semver (upnp-tray-v1.0.7).
  * No Electron dependency so it can be unit tested in Node.
  */
 
 const TRAY_RELEASE_TAG_PREFIX = 'upnp-tray-v';
 const GITHUB_RELEASES_API = 'https://api.github.com/repos/billpoulson/AnimeDB/releases?per_page=100';
+
+/** Match YYYY.MM.DD (optional .N) after prefix for date-version tags */
+function parseDateVersion(tag, prefix = TRAY_RELEASE_TAG_PREFIX) {
+  const suffix = tag.startsWith(prefix) ? tag.slice(prefix.length) : '';
+  const match = suffix.match(/^(\d{4})\.(\d{1,2})\.(\d{1,2})(?:\.(\d+))?$/);
+  if (!match) return null;
+  return {
+    y: parseInt(match[1], 10),
+    m: parseInt(match[2], 10),
+    d: parseInt(match[3], 10),
+    n: match[4] ? parseInt(match[4], 10) : 0,
+  };
+}
+
+function compareDateVersion(a, b, prefix = TRAY_RELEASE_TAG_PREFIX) {
+  const va = parseDateVersion(a, prefix);
+  const vb = parseDateVersion(b, prefix);
+  if (!va || !vb) return 0;
+  if (va.y !== vb.y) return va.y > vb.y ? 1 : -1;
+  if (va.m !== vb.m) return va.m > vb.m ? 1 : -1;
+  if (va.d !== vb.d) return va.d > vb.d ? 1 : -1;
+  if (va.n !== vb.n) return va.n > vb.n ? 1 : -1;
+  return 0;
+}
 
 function parseSemver(tag, prefix = TRAY_RELEASE_TAG_PREFIX) {
   const match = tag.replace(prefix, '').match(/^(\d+)\.(\d+)\.(\d+)$/);
@@ -18,6 +43,21 @@ function compareSemver(a, b, prefix = TRAY_RELEASE_TAG_PREFIX) {
   for (let i = 0; i < 3; i++) {
     if (va[i] !== vb[i]) return va[i] > vb[i] ? 1 : -1;
   }
+  return 0;
+}
+
+/**
+ * Compare two tray tags for "latest". Date-version tags are newer than semver; same type compared by value.
+ */
+function compareTrayTags(a, b, prefix = TRAY_RELEASE_TAG_PREFIX) {
+  const aDate = parseDateVersion(a, prefix);
+  const bDate = parseDateVersion(b, prefix);
+  const aSemver = parseSemver(a, prefix);
+  const bSemver = parseSemver(b, prefix);
+  if (aDate && bDate) return compareDateVersion(a, b, prefix);
+  if (aSemver && bSemver) return compareSemver(a, b, prefix);
+  if (aDate && bSemver) return 1;
+  if (aSemver && bDate) return -1;
   return 0;
 }
 
@@ -37,15 +77,15 @@ function getLatestTrayTagFromReleases(releases, prefix = TRAY_RELEASE_TAG_PREFIX
   if (trayTags.length === 0) {
     return { error: 'none' };
   }
-  trayTags.sort((a, b) => -compareSemver(a, b, prefix));
+  trayTags.sort((a, b) => -compareTrayTags(a, b, prefix));
   return { tag: trayTags[0] };
 }
 
 /**
  * Fetch releases from GitHub and return latest tray tag or error.
  * @param {typeof fetch} fetchImpl
- * @param {{ retries?: number, retryDelayMs?: number, timeoutMs?: number }} opts
- * @returns {Promise<{ tag: string } | { error: 'none' | 'network' | 'rate_limit' | 'server' }}>}
+ * @param {{ retries?: number, retryDelayMs?: number, timeoutMs?: number, log?: (msg: string) => void }} opts
+ * @returns {Promise<{ tag: string } | { error: 'none' | 'network' | 'rate_limit' | 'server', detail?: string }}>}
  */
 async function getLatestTrayReleaseTag(
   fetchImpl = typeof fetch !== 'undefined' ? fetch : null,
@@ -55,43 +95,58 @@ async function getLatestTrayReleaseTag(
   const retryDelayMs = opts.retryDelayMs ?? 1500;
   const timeoutMs = opts.timeoutMs ?? 15000;
   const prefix = opts.prefix ?? TRAY_RELEASE_TAG_PREFIX;
+  const log = opts.log;
 
   if (!fetchImpl) {
-    return { error: 'network' };
+    log?.('Update check: no fetch implementation (not packaged?)');
+    return { error: 'network', detail: 'no fetch' };
   }
 
   const headers = { Accept: 'application/vnd.github.v3+json' };
+  let lastNetworkError = null;
 
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
+      log?.(`Update check: attempt ${attempt}/${retries}`);
       const res = await fetchImpl(GITHUB_RELEASES_API, {
         headers,
         signal: AbortSignal.timeout(timeoutMs),
       });
       if (res.status === 403) {
-        return { error: 'rate_limit' };
+        log?.('Update check: HTTP 403 (GitHub rate limit or token required)');
+        return { error: 'rate_limit', detail: 'HTTP 403' };
       }
       if (!res.ok) {
-        return { error: 'server' };
+        const detail = `${res.status} ${res.statusText || ''}`.trim();
+        log?.(`Update check: HTTP ${detail}`);
+        return { error: 'server', detail };
       }
       const releases = await res.json();
       const result = getLatestTrayTagFromReleases(releases, prefix);
+      if (result.error === 'none') {
+        log?.('Update check: no tray releases in API response');
+      }
       return result;
-    } catch {
+    } catch (err) {
+      lastNetworkError = err;
+      const msg = err && (err.message || err.name || String(err));
+      log?.(`Update check: network error (attempt ${attempt}/${retries}): ${msg || 'unknown'}`);
       if (attempt === retries) {
-        return { error: 'network' };
+        return { error: 'network', detail: msg || 'unknown' };
       }
       await new Promise((r) => setTimeout(r, retryDelayMs));
     }
   }
-  return { error: 'network' };
 }
 
 module.exports = {
   TRAY_RELEASE_TAG_PREFIX,
   GITHUB_RELEASES_API,
+  parseDateVersion,
+  compareDateVersion,
   parseSemver,
   compareSemver,
+  compareTrayTags,
   getLatestTrayTagFromReleases,
   getLatestTrayReleaseTag,
 };

@@ -5,8 +5,20 @@
 
 const { app, Tray, Menu, shell, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const upnp = require('./upnp');
 const api = require('./api');
+
+/** Log update-check and related messages to userData for debugging. */
+function logUpdateCheck(message) {
+  try {
+    const logPath = path.join(app.getPath('userData'), 'upnp-tray-update.log');
+    const line = `${new Date().toISOString()} ${message}\n`;
+    fs.appendFileSync(logPath, line);
+  } catch (e) {
+    console.error('logUpdateCheck', e);
+  }
+}
 
 const PORT = parseInt(process.env.ANIMEDB_PORT || '3000', 10);
 
@@ -292,9 +304,13 @@ const {
 
 async function runUpdateCheck() {
   if (!app.isPackaged) return;
-  const result = await getLatestTrayReleaseTagImpl(fetch);
+  logUpdateCheck('Update check started');
+  const result = await getLatestTrayReleaseTagImpl(fetch, {
+    log: (msg) => logUpdateCheck(msg),
+  });
 
   if (result.error && result.error !== 'none') {
+    logUpdateCheck(`Update check failed: ${result.error}${result.detail ? ` (${result.detail})` : ''}`);
     updateStatus = 'error';
     updateContextMenu();
     setTimeout(() => {
@@ -305,6 +321,7 @@ async function runUpdateCheck() {
   }
 
   if (!result.tag) {
+    logUpdateCheck('Update check: no tray releases found');
     updateStatus = 'not-available';
     updateContextMenu();
     setTimeout(() => {
@@ -314,6 +331,7 @@ async function runUpdateCheck() {
     return;
   }
 
+  logUpdateCheck(`Update check: latest tag ${result.tag}`);
   const { autoUpdater } = require('electron-updater');
   const feedUrl = `https://github.com/billpoulson/AnimeDB/releases/download/${result.tag}/`;
   autoUpdater.setFeedURL({ provider: 'generic', url: feedUrl });
@@ -361,6 +379,8 @@ function setupAutoUpdater() {
       });
   });
   autoUpdater.on('error', (err) => {
+    const msg = err && (err.message || String(err));
+    logUpdateCheck(`Update check (autoUpdater): ${msg || 'unknown error'}`);
     updateStatus = 'error';
     updateContextMenu();
     setTimeout(() => {

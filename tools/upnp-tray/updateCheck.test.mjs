@@ -3,8 +3,11 @@ import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const {
   TRAY_RELEASE_TAG_PREFIX,
+  parseDateVersion,
+  compareDateVersion,
   parseSemver,
   compareSemver,
+  compareTrayTags,
   getLatestTrayTagFromReleases,
   getLatestTrayReleaseTag,
 } = require('./updateCheck.js');
@@ -25,6 +28,57 @@ describe('parseSemver', () => {
 
   it('accepts custom prefix', () => {
     expect(parseSemver('prefix-v9.8.7', 'prefix-v')).toEqual([9, 8, 7]);
+  });
+});
+
+describe('parseDateVersion', () => {
+  it('parses date-version tag and returns { y, m, d, n }', () => {
+    expect(parseDateVersion('upnp-tray-v2026.03.05')).toEqual({ y: 2026, m: 3, d: 5, n: 0 });
+    expect(parseDateVersion('upnp-tray-v2026.12.31')).toEqual({ y: 2026, m: 12, d: 31, n: 0 });
+  });
+
+  it('parses date with same-day sequence', () => {
+    expect(parseDateVersion('upnp-tray-v2026.03.05.2')).toEqual({ y: 2026, m: 3, d: 5, n: 2 });
+  });
+
+  it('returns null for semver or invalid tag', () => {
+    expect(parseDateVersion('upnp-tray-v1.0.7')).toBeNull();
+    expect(parseDateVersion('v2026.03.05')).toBeNull();
+    expect(parseDateVersion('upnp-tray-v2026.3.5')).toEqual({ y: 2026, m: 3, d: 5, n: 0 });
+  });
+
+  it('accepts custom prefix', () => {
+    expect(parseDateVersion('pre-v2026.03.05', 'pre-v')).toEqual({ y: 2026, m: 3, d: 5, n: 0 });
+  });
+});
+
+describe('compareDateVersion', () => {
+  it('returns 1 when a > b', () => {
+    expect(compareDateVersion('upnp-tray-v2026.03.06', 'upnp-tray-v2026.03.05')).toBe(1);
+    expect(compareDateVersion('upnp-tray-v2026.04.01', 'upnp-tray-v2026.03.31')).toBe(1);
+  });
+
+  it('returns -1 when a < b', () => {
+    expect(compareDateVersion('upnp-tray-v2026.03.05', 'upnp-tray-v2026.03.06')).toBe(-1);
+  });
+
+  it('returns 0 when a === b', () => {
+    expect(compareDateVersion('upnp-tray-v2026.03.05', 'upnp-tray-v2026.03.05')).toBe(0);
+  });
+});
+
+describe('compareTrayTags', () => {
+  it('prefers date tag over semver (date is newer)', () => {
+    expect(compareTrayTags('upnp-tray-v2026.03.05', 'upnp-tray-v1.0.7')).toBe(1);
+    expect(compareTrayTags('upnp-tray-v1.0.7', 'upnp-tray-v2026.03.05')).toBe(-1);
+  });
+
+  it('sorts date tags by date', () => {
+    expect(compareTrayTags('upnp-tray-v2026.03.06', 'upnp-tray-v2026.03.05')).toBe(1);
+  });
+
+  it('sorts semver tags by semver', () => {
+    expect(compareTrayTags('upnp-tray-v1.0.7', 'upnp-tray-v1.0.6')).toBe(1);
   });
 });
 
@@ -51,7 +105,7 @@ describe('compareSemver', () => {
 });
 
 describe('getLatestTrayTagFromReleases', () => {
-  it('returns latest tray tag when multiple tray releases exist', () => {
+  it('returns latest tray tag when multiple semver releases exist', () => {
     const releases = [
       { tag_name: 'v2026.03.04' },
       { tag_name: 'upnp-tray-v1.0.3' },
@@ -59,6 +113,24 @@ describe('getLatestTrayTagFromReleases', () => {
       { tag_name: 'upnp-tray-v1.0.4' },
     ];
     expect(getLatestTrayTagFromReleases(releases)).toEqual({ tag: 'upnp-tray-v1.0.5' });
+  });
+
+  it('prefers date-version tag over semver (date is latest)', () => {
+    const releases = [
+      { tag_name: 'upnp-tray-v1.0.7' },
+      { tag_name: 'upnp-tray-v2026.03.05' },
+      { tag_name: 'upnp-tray-v1.0.6' },
+    ];
+    expect(getLatestTrayTagFromReleases(releases)).toEqual({ tag: 'upnp-tray-v2026.03.05' });
+  });
+
+  it('returns latest when multiple date-version tags exist', () => {
+    const releases = [
+      { tag_name: 'upnp-tray-v2026.03.04' },
+      { tag_name: 'upnp-tray-v2026.03.06' },
+      { tag_name: 'upnp-tray-v2026.03.05' },
+    ];
+    expect(getLatestTrayTagFromReleases(releases)).toEqual({ tag: 'upnp-tray-v2026.03.06' });
   });
 
   it('returns single tray tag when only one exists', () => {
@@ -119,13 +191,13 @@ describe('getLatestTrayReleaseTag', () => {
   it('returns error rate_limit when response is 403', async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: false, status: 403 });
     const result = await getLatestTrayReleaseTag(mockFetch, { retries: 1 });
-    expect(result).toEqual({ error: 'rate_limit' });
+    expect(result).toMatchObject({ error: 'rate_limit' });
   });
 
   it('returns error server when response is 500', async () => {
     const mockFetch = vi.fn().mockResolvedValue({ ok: false, status: 500 });
     const result = await getLatestTrayReleaseTag(mockFetch, { retries: 1 });
-    expect(result).toEqual({ error: 'server' });
+    expect(result).toMatchObject({ error: 'server' });
   });
 
   it('returns error none when response is 200 but no tray tags', async () => {
@@ -143,7 +215,7 @@ describe('getLatestTrayReleaseTag', () => {
     const p = getLatestTrayReleaseTag(mockFetch, { retries: 2, retryDelayMs: 10 });
     await vi.runAllTimersAsync();
     const result = await p;
-    expect(result).toEqual({ error: 'network' });
+    expect(result).toMatchObject({ error: 'network' });
     expect(mockFetch).toHaveBeenCalledTimes(2);
   });
 
@@ -166,6 +238,87 @@ describe('getLatestTrayReleaseTag', () => {
 
   it('returns error network when fetchImpl is null', async () => {
     const result = await getLatestTrayReleaseTag(null, { retries: 1 });
-    expect(result).toEqual({ error: 'network' });
+    expect(result).toMatchObject({ error: 'network' });
+  });
+});
+
+describe('getLatestTrayReleaseTag (log output)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  it('calls log with attempt and no failure message on success', async () => {
+    const log = vi.fn();
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve([{ tag_name: 'upnp-tray-v1.0.5' }]),
+    });
+    const result = await getLatestTrayReleaseTag(mockFetch, { retries: 1, log });
+    expect(result).toEqual({ tag: 'upnp-tray-v1.0.5' });
+    expect(log).toHaveBeenCalledWith('Update check: attempt 1/1');
+    expect(log).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls log with attempt and HTTP 403 message on rate limit', async () => {
+    const log = vi.fn();
+    const mockFetch = vi.fn().mockResolvedValue({ ok: false, status: 403 });
+    await getLatestTrayReleaseTag(mockFetch, { retries: 1, log });
+    expect(log).toHaveBeenCalledWith('Update check: attempt 1/1');
+    expect(log).toHaveBeenCalledWith('Update check: HTTP 403 (GitHub rate limit or token required)');
+    expect(log).toHaveBeenCalledTimes(2);
+  });
+
+  it('calls log with attempt and HTTP status on server error', async () => {
+    const log = vi.fn();
+    const mockFetch = vi.fn().mockResolvedValue({ ok: false, status: 500, statusText: 'Internal Server Error' });
+    await getLatestTrayReleaseTag(mockFetch, { retries: 1, log });
+    expect(log).toHaveBeenCalledWith('Update check: attempt 1/1');
+    expect(log).toHaveBeenCalledWith('Update check: HTTP 500 Internal Server Error');
+    expect(log).toHaveBeenCalledTimes(2);
+  });
+
+  it('calls log with attempt and no-tray-releases message when API has no tray tags', async () => {
+    const log = vi.fn();
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve([{ tag_name: 'v2026.03.04' }]),
+    });
+    await getLatestTrayReleaseTag(mockFetch, { retries: 1, log });
+    expect(log).toHaveBeenCalledWith('Update check: attempt 1/1');
+    expect(log).toHaveBeenCalledWith('Update check: no tray releases in API response');
+    expect(log).toHaveBeenCalledTimes(2);
+  });
+
+  it('calls log with network error message when fetch throws', async () => {
+    const log = vi.fn();
+    const mockFetch = vi.fn().mockRejectedValue(new Error('fetch failed'));
+    const p = getLatestTrayReleaseTag(mockFetch, { retries: 2, retryDelayMs: 10, log });
+    await vi.runAllTimersAsync();
+    await p;
+    expect(log).toHaveBeenCalledWith('Update check: attempt 1/2');
+    expect(log).toHaveBeenCalledWith('Update check: network error (attempt 1/2): fetch failed');
+    expect(log).toHaveBeenCalledWith('Update check: attempt 2/2');
+    expect(log).toHaveBeenCalledWith('Update check: network error (attempt 2/2): fetch failed');
+    expect(log).toHaveBeenCalledTimes(4);
+  });
+
+  it('calls log with no-fetch message when fetchImpl is null', async () => {
+    const log = vi.fn();
+    await getLatestTrayReleaseTag(null, { retries: 1, log });
+    expect(log).toHaveBeenCalledWith('Update check: no fetch implementation (not packaged?)');
+    expect(log).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not call log when opts.log is omitted', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve([{ tag_name: 'upnp-tray-v1.0.5' }]),
+    });
+    const result = await getLatestTrayReleaseTag(mockFetch, { retries: 1 });
+    expect(result).toEqual({ tag: 'upnp-tray-v1.0.5' });
+    expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 });

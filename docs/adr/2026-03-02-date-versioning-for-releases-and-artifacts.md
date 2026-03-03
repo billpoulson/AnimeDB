@@ -21,11 +21,11 @@ Use **date-based versioning** for:
   - Filenames: `install_vN.ps1` where N is an integer that increments per release (e.g. `install_v38.ps1`, `install_v39.ps1`). This is independent of the release date and used to bust CDN cache; README references the current versioned script.
 
 - **Sub-projects (e.g. UPnP Tray)**
-  - May use their own scheme. The UPnP Tray uses semantic versioning in `package.json` (e.g. `1.0.2`) and release tags with a prefix: `upnp-tray-v1.0.2`, so it stays distinct from main app tags and supports its own auto-updater.
+  - **Date versioning:** The UPnP Tray uses the same date scheme as the main app. `package.json` `version` is set to the release date (e.g. `2026.03.05`) at release time. Release tags use the prefix and date: `upnp-tray-v2026.03.05`. The in-app update check compares date-version tags and legacy semver tags (date is treated as newer than semver).
 
 - **Artifacts**
   - Built artifacts (installers, archives) are named with the same version as the release or sub-project they belong to (e.g. release tag `v2026.03.03` → artifacts referenced in that release).
-  - **UPnP Tray installer:** The setup executable uses **date versioning** in the filename to align with the main app, e.g. `AnimeDB UPnP Setup 2026.03.05.exe` (not semver like `AnimeDB UPnP Setup 1.0.6.exe`). The date matches the main app release date when the tray is shipped (e.g. same day as `v2026.03.05`).
+  - **UPnP Tray installer:** The setup executable uses **date versioning**: `AnimeDB UPnP Setup 2026.03.05.exe`. The version in `package.json` is set to the release date by the release script before building, so the built app and `latest.yml` use the date string (comparable by semver as YYYY.M.M.D).
 
 ## Consequences
 
@@ -37,11 +37,11 @@ Use **date-based versioning** for:
 
 - **Cons**
   - Less signal about “breaking” vs “compatible” for the main app (mitigated by CHANGELOG and docs).
-  - Sub-projects that need semver (e.g. for updaters) keep their own version and tag format.
+  - Tray update check must support both date and legacy semver tags during the transition.
 
 ## References
 
 - CHANGELOG.md uses `[YYYY-MM-DD]` sections.
 - Git tags for main app: `vYYYY.MM.DD` or `vYYYY.MM.DD.N` (N ≥ 2) for same-day releases.
 - Install script versioning: `.cursorrules` (Commit Checklist) and README.
-- UPnP Tray: `tools/upnp-tray/package.json` and README (tag prefix `upnp-tray-v`). Installer artifact name uses date versioning (e.g. `AnimeDB UPnP Setup 2026.03.05.exe`).
+- UPnP Tray: `tools/upnp-tray/package.json` version is date (e.g. `2026.03.05`). Tag: `upnp-tray-v2026.03.05`. Installer: `AnimeDB UPnP Setup 2026.03.05.exe`. Release script sets version before build; update check in `updateCheck.js` supports date and semver tags.

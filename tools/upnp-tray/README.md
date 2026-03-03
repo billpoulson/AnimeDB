@@ -47,6 +47,13 @@ npm run build
 
 Creates an installer in `dist/`. You can distribute this so users don't need Node.js.
 
+## Logs
+
+When the update check fails, the tray writes messages to a log file so you can see why (e.g. rate limit, network error, no tray releases). The file is created in the app's user data folder:
+
+- **Path:** `%APPDATA%\animedb-upnp-tray\upnp-tray-update.log` (when running the built app)
+- Each line is timestamped. Check the latest entries after using "Check for updates" or when the tray shows an update error.
+
 ## Auto-Update
 
 The tray app checks for updates on startup and via "Check for updates" in the context menu. Updates are delivered from GitHub Releases. The tray looks for releases whose **tag starts with `upnp-tray-v`** (e.g. `upnp-tray-v1.0.2`) so it does not conflict with the main AnimeDB app releases in the same repo. When an update is downloaded, you're prompted to restart to install.
