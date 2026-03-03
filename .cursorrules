@@ -15,3 +15,31 @@ This ensures the versioned script always reflects the latest state of the codeba
 ### 2. Release Notes
 
 Update `CHANGELOG.md` (create it if missing) for every commit that changes user-facing behavior, features, or fixes. Add an entry under the `[Unreleased]` section or the appropriate version heading. Include a brief, user-oriented description of what changed.
+
+---
+
+## Release process (when creating a release)
+
+When cutting a new release, complete the full sequence. Do not skip steps.
+
+1. **Version numbers and changelog**
+   - Add or finalize the release section in `CHANGELOG.md` for the release date (e.g. `[YYYY-MM-DD]`). Move or copy relevant items from `[Unreleased]` and clear `[Unreleased]` or leave a placeholder.
+   - Install script: create `install_v<N>.ps1` from `install.ps1`, delete `install_v<N-1>.ps1`, update `README.md` to reference the new script (see Commit Checklist above).
+   - UPnP Tray: the release script sets `tools/upnp-tray/package.json` `version` to the release date (e.g. `YYYY.MM.DD`) at build time; ensure CHANGELOG mentions the tray version/date.
+
+2. **Commit and push**
+   - Stage all release-related changes (CHANGELOG, README, install script, tray or other code changes).
+   - Commit with a clear message (e.g. "Release prep: …" or "Release: …").
+   - Push to the target branch: `git push origin <branch>`.
+
+3. **Build artifacts and publish**
+   - Run the release script: `.\scripts\release.ps1` (optionally with `-Date "YYYY-MM-DD"`). The script:
+     - Builds the UPnP Tray (produces the setup exe and `latest.yml` in `tools/upnp-tray/dist/`).
+     - **Patches `latest.yml`** so its `path` and `url` match the actual exe filename (electron-builder may write dashed names like `AnimeDB-UPnP-Setup-1.0.0.exe` but the NSIS output is `AnimeDB UPnP Setup 1.0.0.exe`; without this patch the in-app updater would 404 when downloading). Do not remove or skip this step if changing the script.
+     - Creates the main app GitHub release (tag `vYYYY.MM.DD` or `vYYYY.MM.DD.N`) and **attaches the tray setup exe and latest.yml** as release assets.
+     - Creates the tray release (tag `upnp-tray-vYYYY.MM.DD`) and **attaches the same setup exe and latest.yml**. The in-app updater will not detect the release if these assets are missing.
+   - Unset `CI` before running if needed so the tray build does not attempt to publish: `$env:CI = $null; .\scripts\release.ps1`.
+   - After the script runs, commit any leftover changes (e.g. release script fixes or tray `package.json` version) and push again.
+
+4. **Verify**
+   - Confirm both GitHub releases exist and **each has the setup exe and latest.yml attached**. If the tray release is missing the exe or latest.yml, the installed tray will not see an update. Optionally run `git fetch origin --tags` to update local tags.

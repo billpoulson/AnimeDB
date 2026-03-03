@@ -19,11 +19,13 @@ Follow **date-based versioning** for the main AnimeDB app. See `docs/adr/2026-03
 
 ## Sub-projects (e.g. UPnP Tray)
 
-- May use their own scheme. UPnP Tray uses semver in `package.json` and release tags with prefix `upnp-tray-v` (e.g. `upnp-tray-v1.0.2`). Do not use main-app date tags for tray releases.
+- **Date versioning:** Tray uses the same date scheme. Release tag: `upnp-tray-vYYYY.MM.DD`. The setup exe is built with the date in the name (e.g. `AnimeDB UPnP Setup 2026.3.6.exe`). The release script sets `package.json` version to the date before building. Both releases must have the **setup exe and latest.yml** attached. **latest.yml path/url must match the actual exe filename:** electron-builder may write dashed names in latest.yml (`AnimeDB-UPnP-Setup-*.exe`) while the NSIS exe has spaces (`AnimeDB UPnP Setup *.exe`). The release script patches latest.yml before upload so the in-app updater can download the file; keep this behavior when changing the release flow.
 
 ## When creating or updating releases
 
-1. Use today’s date or the next calendar date. Tag: `vYYYY.MM.DD` (first of the day) or `vYYYY.MM.DD.N` (N ≥ 2 for same-day releases).
-2. Update CHANGELOG under the matching `[YYYY-MM-DD]` section.
-3. Create the Git tag in the form above.
-4. When versioning the install script, increment N in `install_v<N>.ps1` and update README to point to the new script.
+Follow the **Release process** in `.cursorrules`. Steps:
+
+1. **Version and changelog:** Use today’s date or the next calendar date. Update CHANGELOG under `[YYYY-MM-DD]`. Install script: new `install_v<N>.ps1`, remove old, update README. Tray version is set by the release script to the date.
+2. **Commit and push** all release-related changes.
+3. **Build and publish:** Run `.\scripts\release.ps1` (optionally `-Date "YYYY-MM-DD"`). The script builds the UPnP Tray and creates both releases, attaching the setup exe and latest.yml to each. Use `$env:CI = $null` if the tray build fails on publish.
+4. **Verify** both releases have the setup exe and latest.yml attached; commit and push any post-release changes. See `.cursorrules` for the full Release process.

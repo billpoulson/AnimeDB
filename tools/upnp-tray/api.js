@@ -184,14 +184,19 @@ async function setConnectable(connectable) {
 /**
  * Verify that AnimeDB is reachable at the given external URL (the UPnP-resolved URL and port).
  * Uses a quick request to that URL; if it succeeds, the instance is connectable from that address.
+ * @param {string} url - Base URL (e.g. http://1.2.3.4:3000)
+ * @param {{ log?: (msg: string) => void }} opts - Optional logger for failure reason (e.g. ECONNREFUSED, ETIMEDOUT)
  */
-async function verifyReachableAtUrl(url) {
+async function verifyReachableAtUrl(url, opts = {}) {
   if (!url || typeof url !== 'string') return false;
   const base = url.replace(/\/+$/, '');
+  const log = opts.log;
   try {
     const res = await fetch(`${base}/api/config`, { method: 'GET', signal: AbortSignal.timeout(10000) });
     return res.ok;
-  } catch {
+  } catch (err) {
+    const msg = err && (err.message || err.cause?.message || String(err));
+    log?.(`${base}: ${msg || 'unknown error'}`);
     return false;
   }
 }

@@ -30,6 +30,10 @@ A small Windows system tray app that handles UPnP when AnimeDB runs in Docker. D
 
 4. If AnimeDB has a password set, you'll see "Authentication required". Click **Login**, enter your password. The app creates a long-lived API key ("UPnP Tray") with networking-only permission and stores it — you won't be prompted again even if you log out from the web UI. The key can only manage the external URL; it cannot access downloads, peers, or other data.
 
+### Connectable: No but the external URL works?
+
+The tray tests reachability by requesting the external URL **from this PC**. Many home routers do not support **NAT loopback** (hairpinning): a request from your LAN to your router’s public IP is not sent back to your machine, so the check fails even when the service is reachable from the internet (e.g. from your phone on cellular). If the external URL works when you open it from another network, you can ignore "Connectable: No". The tray also waits a few seconds after UPnP setup before the first check, so the router has time to apply the port forward. When the same URL works in the browser, the tray now prefers **IPv4** for DNS (like the browser); when the check fails, the exact error is written to the same log file (e.g. `Connectability: ... ECONNREFUSED` or `ETIMEDOUT`).
+
 ## Configuration
 
 Environment variables (set before `npm start` or in a shortcut):
@@ -49,10 +53,14 @@ Creates an installer in `dist/`. You can distribute this so users don't need Nod
 
 ## Logs
 
-When the update check fails, the tray writes messages to a log file so you can see why (e.g. rate limit, network error, no tray releases). The file is created in the app's user data folder:
+When the update check fails, the tray writes messages to a log file so you can see why (e.g. rate limit, network error, no tray releases). The file is in the app's user data folder; the folder name depends on how the app was built:
 
-- **Path:** `%APPDATA%\animedb-upnp-tray\upnp-tray-update.log` (when running the built app)
-- Each line is timestamped. Check the latest entries after using "Check for updates" or when the tray shows an update error.
+- **Installed (NSIS):** `%APPDATA%\AnimeDB UPnP\upnp-tray-update.log` (productName)
+- **Or:** `%APPDATA%\animedb-upnp-tray\upnp-tray-update.log` (package name)
+
+Full path example: `C:\Users\<You>\AppData\Roaming\AnimeDB UPnP\upnp-tray-update.log`
+
+To open the folder in Explorer: press Win+R, type `%APPDATA%`, Enter, then look for **AnimeDB UPnP** or **animedb-upnp-tray**. The log file is `upnp-tray-update.log`. Each line is timestamped; check the latest entries after "Check for updates" or when the tray shows an update error.
 
 ## Auto-Update
 

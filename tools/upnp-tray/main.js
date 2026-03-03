@@ -6,8 +6,12 @@
 const { app, Tray, Menu, shell, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const dns = require('dns');
 const upnp = require('./upnp');
 const api = require('./api');
+
+// Prefer IPv4 so fetch() to the external URL uses the same path as the browser (many routers only forward IPv4)
+if (dns.setDefaultResultOrder) dns.setDefaultResultOrder('ipv4first');
 
 /** Log update-check and related messages to userData for debugging. */
 function logUpdateCheck(message) {
@@ -95,6 +99,7 @@ function updateContextMenu() {
           : 'Connectable: checking...';
     items.push({ label: connectableLabel, enabled: false });
   }
+  const logPath = path.join(app.getPath('userData'), 'upnp-tray-update.log');
   items.push(
     { type: 'separator' },
     {
@@ -108,6 +113,14 @@ function updateContextMenu() {
     {
       label: 'Login',
       click: () => showLoginWindow(),
+    },
+    {
+      label: 'View log',
+      click: () => {
+        shell.openPath(logPath).then((err) => {
+          if (err && fs.existsSync(path.dirname(logPath))) shell.openPath(path.dirname(logPath));
+        });
+      },
     },
   );
 
@@ -212,7 +225,7 @@ function startConnectabilityCheckLoop() {
   connectabilityCheckTimer = setInterval(async () => {
     if (!lastUrl) return;
     try {
-      const reachable = await api.verifyReachableAtUrl(lastUrl);
+      const reachable = await api.verifyReachableAtUrl(lastUrl, { log: (m) => logUpdateCheck('Connectability: ' + m) });
       await reportConnectable(lastUrl, reachable);
       updateContextMenu();
     } catch {
@@ -235,14 +248,17 @@ async function runUpnp() {
 
     const pushed = await pushToAnimeDB(result.url);
     if (pushed) {
-      const reachable = await api.verifyReachableAtUrl(result.url);
+      // Brief delay so the router has time to apply the port forward before we probe the external URL
+      await new Promise((r) => setTimeout(r, 5000));
+      const reachable = await api.verifyReachableAtUrl(result.url, { log: (m) => logUpdateCheck('Connectability: ' + m) });
       await reportConnectable(result.url, reachable);
       startConnectabilityCheckLoop();
       upnp.startRenewalLoop(PORT, PORT, async (renewResult) => {
         lastUrl = renewResult.url;
         const renewed = await pushToAnimeDB(renewResult.url);
         if (renewed) {
-          const reachableAgain = await api.verifyReachableAtUrl(renewResult.url);
+          await new Promise((r) => setTimeout(r, 3000));
+          const reachableAgain = await api.verifyReachableAtUrl(renewResult.url, { log: (m) => logUpdateCheck('Connectability: ' + m) });
           await reportConnectable(renewResult.url, reachableAgain);
         }
         updateContextMenu();
@@ -275,14 +291,16 @@ async function handleLogin(password) {
     const ok = await pushToAnimeDB(pendingPushUrl);
     if (ok) {
       lastUrl = pendingPushUrl;
-      const reachable = await api.verifyReachableAtUrl(pendingPushUrl);
+      await new Promise((r) => setTimeout(r, 5000));
+      const reachable = await api.verifyReachableAtUrl(pendingPushUrl, { log: (m) => logUpdateCheck('Connectability: ' + m) });
       await reportConnectable(pendingPushUrl, reachable);
       startConnectabilityCheckLoop();
       upnp.startRenewalLoop(PORT, PORT, async (renewResult) => {
         lastUrl = renewResult.url;
         const renewed = await pushToAnimeDB(renewResult.url);
         if (renewed) {
-          const reachableAgain = await api.verifyReachableAtUrl(renewResult.url);
+          await new Promise((r) => setTimeout(r, 3000));
+          const reachableAgain = await api.verifyReachableAtUrl(renewResult.url, { log: (m) => logUpdateCheck('Connectability: ' + m) });
           await reportConnectable(renewResult.url, reachableAgain);
         }
         updateContextMenu();

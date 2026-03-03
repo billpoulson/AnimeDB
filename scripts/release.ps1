@@ -103,6 +103,19 @@ if (-not (Test-Path $latestYml)) {
     exit 1
 }
 
+# electron-builder writes path/url with dashes (AnimeDB-UPnP-Setup-1.0.0.exe) but NSIS output uses spaces (AnimeDB UPnP Setup 1.0.0.exe)
+# Patch latest.yml so path and url match the actual exe we upload; otherwise the in-app updater will 404
+$exeBasename = [System.IO.Path]::GetFileName($setupExe)
+$latestYmlContent = Get-Content $latestYml -Raw
+if ($latestYmlContent -match 'path:\s*([^\r\n]+)') {
+    $oldPath = $Matches[1].Trim()
+    if ($oldPath -ne $exeBasename) {
+        $latestYmlContent = $latestYmlContent -replace [regex]::Escape($oldPath), $exeBasename
+        Set-Content $latestYml -Value $latestYmlContent -NoNewline
+        Write-Host "    Patched latest.yml path/url to match exe: $exeBasename" -ForegroundColor Gray
+    }
+}
+
 Write-Host "    Tray version: $trayVersion" -ForegroundColor Gray
 Write-Host "    Setup exe:    $setupExe" -ForegroundColor Gray
 Write-Host "    latest.yml:  $latestYml`n" -ForegroundColor Gray
