@@ -136,7 +136,7 @@ describe.skipIf(skipInDockerOrCI)('upgrade', () => {
       } catch {}
     }
     execSync('npm install', { cwd: path.join(ROOT, 'backend'), stdio: 'pipe' });
-    execSync('npm run build', { cwd: ROOT, stdio: 'pipe' });
+    execSync('npm run build', { cwd: path.join(ROOT, 'backend'), stdio: 'pipe' });
 
     // 4. Run previous backend (frontend stays current)
     const backendDistOrig = path.join(ROOT, 'backend', 'dist');

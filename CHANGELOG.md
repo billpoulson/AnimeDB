@@ -6,6 +6,22 @@ All notable changes to AnimeDB will be documented in this file.
 
 _No unreleased changes._
 
+## [2026-03-09]
+
+### Changed
+
+- **UPnP tray: update check** — Menu state is driven by our own GitHub API result: compare current version with latest tag and set "No updates available" or "Update available: X.X.X" immediately instead of waiting for electron-updater. Fixes menu stuck on "Checking for updates...".
+- **UPnP tray: shared menu label** — Update menu label comes from `getUpdateMenuLabel(status, version)` in updateCheck.js so it can be unit and integration tested.
+
+### Added
+
+- **UPnP tray: tests** — Unit tests for `getUpdateMenuLabel`, `isNewerReleaseAvailable`; integration tests (with real GitHub when `RUN_GITHUB_INTEGRATION=1`) for fetch + menu content (current = latest → "No updates available", current < latest → "Update available: …").
+- **Upgrade test** — Step 3 builds backend only (not root) so the test completes when root build is frontend-only.
+
+### Added (tooling)
+
+- **Install script** — install_v47.ps1 (replace v46).
+
 ## [2026-03-08]
 
 ### Changed

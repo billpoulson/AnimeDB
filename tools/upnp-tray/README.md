@@ -51,6 +51,14 @@ npm run build
 
 Creates an installer in `dist/`. You can distribute this so users don't need Node.js.
 
+## Testing
+
+```powershell
+npm test
+```
+
+Runs unit tests for the update-check logic (version parsing, comparison, `isNewerReleaseAvailable`, GitHub API response handling). To include the **integration test** that hits the real GitHub API for `billpoulson/AnimeDB` releases, set `RUN_GITHUB_INTEGRATION=1` before running (e.g. PowerShell: `$env:RUN_GITHUB_INTEGRATION='1'; npm test`). The integration test is skipped by default so CI does not require network access.
+
 ## Logs
 
 When the update check fails, the tray writes messages to a log file so you can see why (e.g. rate limit, network error, no tray releases). The file is in the app's user data folder; the folder name depends on how the app was built:

@@ -48,9 +48,6 @@ let lastConnectable = null;
 // Auto-update state: null | 'checking' | 'available' | 'downloaded' | 'error' | 'not-available'
 let updateStatus = null;
 let updateVersion = null;
-/** Timeout to clear "checking" if electron-updater never emits (e.g. fetch hangs) */
-let updateCheckTimeoutId = null;
-const UPDATE_CHECK_TIMEOUT_MS = 25000;
 
 const ICON_STATUS = {
   green: 'icon-green.png',   // connected and working
@@ -128,18 +125,7 @@ function updateContextMenu() {
   });
 
   if (app.isPackaged) {
-    const updateLabel =
-      updateStatus === 'checking'
-        ? 'Checking for updates...'
-        : updateStatus === 'available'
-          ? `Update available: ${updateVersion}`
-          : updateStatus === 'downloaded'
-            ? 'Restart to install update'
-            : updateStatus === 'error'
-              ? 'Update check failed'
-              : updateStatus === 'not-available'
-                ? 'No updates available'
-                : 'Check for updates';
+    const updateLabel = getUpdateMenuLabel(updateStatus, updateVersion);
     items.push(
       { type: 'separator' },
       {
@@ -321,6 +307,9 @@ function cleanup() {
 
 const {
   getLatestTrayReleaseTag: getLatestTrayReleaseTagImpl,
+  getUpdateMenuLabel,
+  isNewerReleaseAvailable,
+  TRAY_RELEASE_TAG_PREFIX,
 } = require('./updateCheck');
 
 async function runUpdateCheck() {
@@ -353,25 +342,30 @@ async function runUpdateCheck() {
   }
 
   logUpdateCheck(`Update check: latest tag ${result.tag}`);
-  const { autoUpdater } = require('electron-updater');
-  const feedUrl = `https://github.com/billpoulson/AnimeDB/releases/download/${result.tag}/`;
-  autoUpdater.setFeedURL({ provider: 'generic', url: feedUrl });
+  const currentVersion = app.getVersion();
+  const hasNewer = isNewerReleaseAvailable(currentVersion, result.tag, TRAY_RELEASE_TAG_PREFIX);
 
-  if (updateCheckTimeoutId) clearTimeout(updateCheckTimeoutId);
-  updateCheckTimeoutId = setTimeout(() => {
-    updateCheckTimeoutId = null;
-    if (updateStatus === 'checking') {
-      logUpdateCheck('Update check timed out (electron-updater did not respond)');
-      updateStatus = 'error';
+  if (hasNewer) {
+    updateStatus = 'available';
+    updateVersion = result.tag.startsWith(TRAY_RELEASE_TAG_PREFIX) ? result.tag.slice(TRAY_RELEASE_TAG_PREFIX.length) : result.tag;
+    logUpdateCheck(`Update available: ${updateVersion}`);
+  } else {
+    updateStatus = 'not-available';
+    updateVersion = null;
+    logUpdateCheck('No updates available (current is latest)');
+    setTimeout(() => {
+      updateStatus = null;
       updateContextMenu();
-      setTimeout(() => {
-        updateStatus = null;
-        updateContextMenu();
-      }, 5000);
-    }
-  }, UPDATE_CHECK_TIMEOUT_MS);
+    }, 3000);
+  }
+  updateContextMenu();
 
-  autoUpdater.checkForUpdatesAndNotify();
+  if (hasNewer) {
+    const { autoUpdater } = require('electron-updater');
+    const feedUrl = `https://github.com/billpoulson/AnimeDB/releases/download/${result.tag}/`;
+    autoUpdater.setFeedURL({ provider: 'generic', url: feedUrl });
+    autoUpdater.checkForUpdatesAndNotify();
+  }
 }
 
 function setupAutoUpdater() {
@@ -382,18 +376,19 @@ function setupAutoUpdater() {
   autoUpdater.autoInstallOnAppQuit = false;
 
   autoUpdater.on('checking-for-update', () => {
-    updateStatus = 'checking';
+    // Don't overwrite result we already set from our own API check
+    if (updateStatus !== 'available' && updateStatus !== 'not-available' && updateStatus !== 'downloaded') {
+      updateStatus = 'checking';
+    }
     updateContextMenu();
   });
   autoUpdater.on('update-available', (info) => {
-    if (updateCheckTimeoutId) { clearTimeout(updateCheckTimeoutId); updateCheckTimeoutId = null; }
     updateStatus = 'available';
     updateVersion = info.version;
     updateContextMenu();
     tray.setToolTip(`AnimeDB UPnP - Update ${info.version} available`);
   });
   autoUpdater.on('update-not-available', () => {
-    if (updateCheckTimeoutId) { clearTimeout(updateCheckTimeoutId); updateCheckTimeoutId = null; }
     updateStatus = 'not-available';
     updateContextMenu();
     setTimeout(() => {
@@ -417,7 +412,6 @@ function setupAutoUpdater() {
       });
   });
   autoUpdater.on('error', (err) => {
-    if (updateCheckTimeoutId) { clearTimeout(updateCheckTimeoutId); updateCheckTimeoutId = null; }
     const msg = err && (err.message || String(err));
     logUpdateCheck(`Update check (autoUpdater): ${msg || 'unknown error'}`);
     updateStatus = 'error';

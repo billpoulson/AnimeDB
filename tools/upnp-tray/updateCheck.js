@@ -62,6 +62,32 @@ function compareTrayTags(a, b, prefix = TRAY_RELEASE_TAG_PREFIX) {
 }
 
 /**
+ * Returns the tray context menu label for the update item (shared so tests can assert on it).
+ * @param {string | null} updateStatus - 'checking' | 'available' | 'not-available' | 'downloaded' | 'error'
+ * @param {string | null} updateVersion - Version string when status is 'available'
+ */
+function getUpdateMenuLabel(updateStatus, updateVersion) {
+  if (updateStatus === 'checking') return 'Checking for updates...';
+  if (updateStatus === 'available') return `Update available: ${updateVersion}`;
+  if (updateStatus === 'downloaded') return 'Restart to install update';
+  if (updateStatus === 'error') return 'Update check failed';
+  if (updateStatus === 'not-available') return 'No updates available';
+  return 'Check for updates';
+}
+
+/**
+ * Returns true if latestTag is a newer release than currentVersion (so an update is available).
+ * @param {string} currentVersion - App version string (e.g. "2026.03.08" or "1.0.6")
+ * @param {string} latestTag - Full tag (e.g. "upnp-tray-v2026.03.08")
+ * @param {string} [prefix]
+ */
+function isNewerReleaseAvailable(currentVersion, latestTag, prefix = TRAY_RELEASE_TAG_PREFIX) {
+  if (!currentVersion || !latestTag || !latestTag.startsWith(prefix)) return false;
+  const currentTag = prefix + currentVersion;
+  return compareTrayTags(currentTag, latestTag, prefix) < 0;
+}
+
+/**
  * Given a GitHub API releases array, return the latest tray tag or an error.
  * @param {Array<{ tag_name?: string }>} releases
  * @param {string} prefix
@@ -147,6 +173,8 @@ module.exports = {
   parseSemver,
   compareSemver,
   compareTrayTags,
+  getUpdateMenuLabel,
+  isNewerReleaseAvailable,
   getLatestTrayTagFromReleases,
   getLatestTrayReleaseTag,
 };

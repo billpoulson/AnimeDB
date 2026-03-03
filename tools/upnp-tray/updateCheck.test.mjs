@@ -8,6 +8,8 @@ const {
   parseSemver,
   compareSemver,
   compareTrayTags,
+  getUpdateMenuLabel,
+  isNewerReleaseAvailable,
   getLatestTrayTagFromReleases,
   getLatestTrayReleaseTag,
 } = require('./updateCheck.js');
@@ -64,6 +66,59 @@ describe('compareDateVersion', () => {
 
   it('returns 0 when a === b', () => {
     expect(compareDateVersion('upnp-tray-v2026.03.05', 'upnp-tray-v2026.03.05')).toBe(0);
+  });
+});
+
+describe('getUpdateMenuLabel', () => {
+  it('returns correct label for each status', () => {
+    expect(getUpdateMenuLabel('checking', null)).toBe('Checking for updates...');
+    expect(getUpdateMenuLabel('available', '2026.03.08')).toBe('Update available: 2026.03.08');
+    expect(getUpdateMenuLabel('downloaded', null)).toBe('Restart to install update');
+    expect(getUpdateMenuLabel('error', null)).toBe('Update check failed');
+    expect(getUpdateMenuLabel('not-available', null)).toBe('No updates available');
+    expect(getUpdateMenuLabel(null, null)).toBe('Check for updates');
+    expect(getUpdateMenuLabel('', null)).toBe('Check for updates');
+  });
+});
+
+describe('isNewerReleaseAvailable', () => {
+  it('returns false when current equals latest (date version)', () => {
+    expect(isNewerReleaseAvailable('2026.03.08', 'upnp-tray-v2026.03.08')).toBe(false);
+    expect(isNewerReleaseAvailable('2026.3.8', 'upnp-tray-v2026.03.08')).toBe(false);
+  });
+
+  it('returns true when latest is newer than current (date version)', () => {
+    expect(isNewerReleaseAvailable('2026.03.07', 'upnp-tray-v2026.03.08')).toBe(true);
+    expect(isNewerReleaseAvailable('2026.03.08', 'upnp-tray-v2026.03.09')).toBe(true);
+  });
+
+  it('returns false when current is newer than latest (date version)', () => {
+    expect(isNewerReleaseAvailable('2026.03.08', 'upnp-tray-v2026.03.07')).toBe(false);
+  });
+
+  it('returns false when current equals latest (semver)', () => {
+    expect(isNewerReleaseAvailable('1.0.6', 'upnp-tray-v1.0.6')).toBe(false);
+  });
+
+  it('returns true when latest is newer than current (semver)', () => {
+    expect(isNewerReleaseAvailable('1.0.5', 'upnp-tray-v1.0.6')).toBe(true);
+  });
+
+  it('returns false when latestTag does not match prefix', () => {
+    expect(isNewerReleaseAvailable('2026.03.07', 'v2026.03.08')).toBe(false);
+  });
+
+  it('returns false when currentVersion is empty', () => {
+    expect(isNewerReleaseAvailable('', 'upnp-tray-v2026.03.08')).toBe(false);
+  });
+
+  it('returns false when latestTag is empty or null', () => {
+    expect(isNewerReleaseAvailable('2026.03.07', '')).toBe(false);
+  });
+
+  it('accepts custom prefix', () => {
+    expect(isNewerReleaseAvailable('2.0.0', 'myapp-v2.0.1', 'myapp-v')).toBe(true);
+    expect(isNewerReleaseAvailable('2.0.0', 'myapp-v2.0.0', 'myapp-v')).toBe(false);
   });
 });
 
@@ -321,4 +376,63 @@ describe('getLatestTrayReleaseTag (log output)', () => {
     expect(result).toEqual({ tag: 'upnp-tray-v1.0.5' });
     expect(mockFetch).toHaveBeenCalledTimes(1);
   });
+});
+
+describe('getLatestTrayReleaseTag (integration with GitHub)', () => {
+  it.skipIf(!process.env.RUN_GITHUB_INTEGRATION)(
+    'fetches latest tray tag from upstream GitHub API',
+    async () => {
+      const result = await getLatestTrayReleaseTag(globalThis.fetch, {
+        retries: 2,
+        timeoutMs: 15000,
+      });
+      expect(result).toBeDefined();
+      if (result.error) {
+        expect(['network', 'rate_limit', 'server', 'none']).toContain(result.error);
+        return;
+      }
+      expect(result).toHaveProperty('tag');
+      expect(result.tag).toMatch(new RegExp(`^${TRAY_RELEASE_TAG_PREFIX}`));
+      expect(parseDateVersion(result.tag) || parseSemver(result.tag)).toBeTruthy();
+    },
+    20000,
+  );
+
+  it.skipIf(!process.env.RUN_GITHUB_INTEGRATION)(
+    'menu label matches update check result (current = latest → No updates; current < latest → Update available)',
+    async () => {
+      const result = await getLatestTrayReleaseTag(globalThis.fetch, {
+        retries: 2,
+        timeoutMs: 15000,
+      });
+      expect(result).toBeDefined();
+      if (result.error) {
+        expect(['network', 'rate_limit', 'server', 'none']).toContain(result.error);
+        return;
+      }
+      expect(result).toHaveProperty('tag');
+      const latestTag = result.tag;
+      const latestVersion = latestTag.startsWith(TRAY_RELEASE_TAG_PREFIX)
+        ? latestTag.slice(TRAY_RELEASE_TAG_PREFIX.length)
+        : latestTag;
+
+      // When current version equals latest: menu shows "No updates available"
+      const hasNewerWhenCurrent = isNewerReleaseAvailable(latestVersion, latestTag);
+      expect(hasNewerWhenCurrent).toBe(false);
+      const statusWhenCurrent = 'not-available';
+      const labelWhenCurrent = getUpdateMenuLabel(statusWhenCurrent, null);
+      expect(labelWhenCurrent).toBe('No updates available');
+
+      // When current version is older: menu shows "Update available: <version>"
+      const oldVersion = parseDateVersion(latestTag)
+        ? '2026.01.01'
+        : '1.0.0';
+      const hasNewerWhenOld = isNewerReleaseAvailable(oldVersion, latestTag);
+      expect(hasNewerWhenOld).toBe(true);
+      const statusWhenOld = 'available';
+      const labelWhenOld = getUpdateMenuLabel(statusWhenOld, latestVersion);
+      expect(labelWhenOld).toBe(`Update available: ${latestVersion}`);
+    },
+    20000,
+  );
 });
