@@ -10,6 +10,7 @@ _No unreleased changes._
 
 ### Added
 
+- **UPnP tray 1.0.7** — Release for update-check testing; ADR updated (installer artifact to use date versioning in filename).
 - **UPnP tray 1.0.6** — Update check: retries (3 attempts), 15s timeout, clear "Update check failed" vs "No updates available". Update logic moved to testable `updateCheck.js` (no Electron). Unit tests for parseSemver, compareSemver, getLatestTrayTagFromReleases, getLatestTrayReleaseTag (21 tests).
 - **Install script** — install_v42.ps1 (replace v41).
 

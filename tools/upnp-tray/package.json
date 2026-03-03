@@ -1,6 +1,6 @@
 {
   "name": "animedb-upnp-tray",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Windows system tray app for UPnP when running AnimeDB in Docker",
   "author": "AnimeDB",
   "main": "main.js",

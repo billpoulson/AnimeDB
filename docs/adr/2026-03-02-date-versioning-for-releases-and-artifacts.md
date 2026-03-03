@@ -24,7 +24,8 @@ Use **date-based versioning** for:
   - May use their own scheme. The UPnP Tray uses semantic versioning in `package.json` (e.g. `1.0.2`) and release tags with a prefix: `upnp-tray-v1.0.2`, so it stays distinct from main app tags and supports its own auto-updater.
 
 - **Artifacts**
-  - Built artifacts (installers, archives) are named with the same version as the release or sub-project they belong to (e.g. release tag `v2026.03.03` → artifacts referenced in that release; tray `1.0.2` → `AnimeDB UPnP Setup 1.0.2.exe`).
+  - Built artifacts (installers, archives) are named with the same version as the release or sub-project they belong to (e.g. release tag `v2026.03.03` → artifacts referenced in that release).
+  - **UPnP Tray installer:** The setup executable uses **date versioning** in the filename to align with the main app, e.g. `AnimeDB UPnP Setup 2026.03.05.exe` (not semver like `AnimeDB UPnP Setup 1.0.6.exe`). The date matches the main app release date when the tray is shipped (e.g. same day as `v2026.03.05`).
 
 ## Consequences
 
@@ -43,4 +44,4 @@ Use **date-based versioning** for:
 - CHANGELOG.md uses `[YYYY-MM-DD]` sections.
 - Git tags for main app: `vYYYY.MM.DD` or `vYYYY.MM.DD.N` (N ≥ 2) for same-day releases.
 - Install script versioning: `.cursorrules` (Commit Checklist) and README.
-- UPnP Tray: `tools/upnp-tray/package.json` and README (tag prefix `upnp-tray-v`).
+- UPnP Tray: `tools/upnp-tray/package.json` and README (tag prefix `upnp-tray-v`). Installer artifact name uses date versioning (e.g. `AnimeDB UPnP Setup 2026.03.05.exe`).
