@@ -23,6 +23,12 @@ let lastError = null;
 let loginWindow = null;
 let pendingPushUrl = null;
 
+// Periodically test connectability at the UPnP-resolved external URL and push to AnimeDB
+const CONNECTABILITY_CHECK_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
+let connectabilityCheckTimer = null;
+/** Last known connectable state: null = unknown, true/false = last check result */
+let lastConnectable = null;
+
 // Auto-update state: null | 'checking' | 'available' | 'downloaded' | 'error' | 'not-available'
 let updateStatus = null;
 let updateVersion = null;
@@ -67,6 +73,17 @@ function updateContextMenu() {
 
   const items = [
     { label: status, enabled: false },
+  ];
+  if (lastUrl) {
+    const connectableLabel =
+      lastConnectable === true
+        ? 'Connectable: Yes — reachable at external URL'
+        : lastConnectable === false
+          ? 'Connectable: No'
+          : 'Connectable: checking...';
+    items.push({ label: connectableLabel, enabled: false });
+  }
+  items.push(
     { type: 'separator' },
     {
       label: 'Open AnimeDB',
@@ -80,7 +97,7 @@ function updateContextMenu() {
       label: 'Login',
       click: () => showLoginWindow(),
     },
-  ];
+  );
 
   if (app.isPackaged) {
     const updateLabel =
@@ -163,6 +180,7 @@ async function pushToAnimeDB(url) {
 }
 
 async function reportConnectable(url, connectable) {
+  lastConnectable = connectable;
   try {
     await api.setConnectable(connectable);
   } catch {
@@ -170,9 +188,32 @@ async function reportConnectable(url, connectable) {
   }
 }
 
+function stopConnectabilityCheckLoop() {
+  if (connectabilityCheckTimer) {
+    clearInterval(connectabilityCheckTimer);
+    connectabilityCheckTimer = null;
+  }
+}
+
+function startConnectabilityCheckLoop() {
+  stopConnectabilityCheckLoop();
+  connectabilityCheckTimer = setInterval(async () => {
+    if (!lastUrl) return;
+    try {
+      const reachable = await api.verifyReachableAtUrl(lastUrl);
+      await reportConnectable(lastUrl, reachable);
+      updateContextMenu();
+    } catch {
+      // non-critical
+    }
+  }, CONNECTABILITY_CHECK_INTERVAL_MS);
+}
+
 async function runUpnp() {
   lastError = null;
   lastUrl = null;
+  lastConnectable = null;
+  stopConnectabilityCheckLoop();
   updateContextMenu();
   await reportConnectable(null, false);
 
@@ -184,6 +225,7 @@ async function runUpnp() {
     if (pushed) {
       const reachable = await api.verifyReachableAtUrl(result.url);
       await reportConnectable(result.url, reachable);
+      startConnectabilityCheckLoop();
       upnp.startRenewalLoop(PORT, PORT, async (renewResult) => {
         lastUrl = renewResult.url;
         const renewed = await pushToAnimeDB(renewResult.url);
@@ -220,8 +262,10 @@ async function handleLogin(password) {
   if (pendingPushUrl) {
     const ok = await pushToAnimeDB(pendingPushUrl);
     if (ok) {
+      lastUrl = pendingPushUrl;
       const reachable = await api.verifyReachableAtUrl(pendingPushUrl);
       await reportConnectable(pendingPushUrl, reachable);
+      startConnectabilityCheckLoop();
       upnp.startRenewalLoop(PORT, PORT, async (renewResult) => {
         lastUrl = renewResult.url;
         const renewed = await pushToAnimeDB(renewResult.url);
@@ -236,6 +280,7 @@ async function handleLogin(password) {
 }
 
 function cleanup() {
+  stopConnectabilityCheckLoop();
   upnp.stopRenewalLoop();
   reportConnectable(null, false).catch(() => {});
   upnp.unmap(upnp.mappedPort).catch(() => {});

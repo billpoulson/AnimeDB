@@ -4,14 +4,23 @@ All notable changes to AnimeDB will be documented in this file.
 
 ## [Unreleased]
 
-### Changed
+_No unreleased changes._
 
-- **Upgrade test** — Skipped when running in Docker or CI (`CI=true` or `DOCKER=1`); UPnP cannot be tested in containers and the upgrade test requires git history.
+## [2026-03-04]
 
 ### Added
 
-- **E2E: external URL and connectable** — Playwright tests for Peers: external URL from UPnP tray (input shows URL, “Managed by UPnP helper”), connectable indicator in tray flow and UPnP section, and UPnP active display with external port.
-- **UPnP tray** — README, main, package.json, and build script updates for tray releases and update checks.
+- **UPnP tray 1.0.5** — Connectability tested using the UPnP-resolved external URL only. Periodic connectability check every 2 minutes; result is pushed to AnimeDB so the Peers UI stays in sync. Tray context menu shows connectable status (Yes / No / checking…).
+- **Peers: connectable always visible when tray-managed** — When the URL is managed by the UPnP helper, the Connectable row is always shown (Yes in green or No in gray). Green dot next to "External URL" when connectable.
+
+### Changed
+
+- **Upgrade test** — Skipped when running in Docker or CI (`CI=true` or `DOCKER=1`).
+
+### Added (tests / tooling)
+
+- **E2E: external URL and connectable** — Playwright tests for Peers: external URL from UPnP tray, connectable indicator in tray flow and UPnP section, UPnP active display with external port.
+- **Install script** — install_v41.ps1 (replace v40).
 
 ## [2026-03-03]
 

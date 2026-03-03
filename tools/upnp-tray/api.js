@@ -182,8 +182,8 @@ async function setConnectable(connectable) {
 }
 
 /**
- * Verify that AnimeDB is reachable at the given external URL (e.g. from the internet).
- * Uses a quick request to the external URL; if it succeeds, the instance is connectable.
+ * Verify that AnimeDB is reachable at the given external URL (the UPnP-resolved URL and port).
+ * Uses a quick request to that URL; if it succeeds, the instance is connectable from that address.
  */
 async function verifyReachableAtUrl(url) {
   if (!url || typeof url !== 'string') return false;

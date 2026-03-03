@@ -270,7 +270,15 @@ export default function Peers() {
                 </div>
               )}
               <div className="flex items-start gap-3">
-                <span className="text-sm text-gray-400 w-28 shrink-0 pt-1.5">External URL</span>
+                <span className="text-sm text-gray-400 w-28 shrink-0 pt-1.5 flex items-center gap-2">
+                  External URL
+                  {networking.remotelyManaged && networking.externalUrl && networking.connectable && (
+                    <span className="inline-flex items-center gap-1" title="Reachable at external URL">
+                      <span className="h-2 w-2 rounded-full bg-green-500 shrink-0" aria-hidden />
+                      <span className="text-xs text-green-400 sr-only">Connectable</span>
+                    </span>
+                  )}
+                </span>
                 <div className="flex-1 min-w-0 flex flex-col gap-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <input
@@ -323,13 +331,18 @@ export default function Peers() {
                   {' '}<a href="/docs#upnp-troubleshooting" className="underline hover:text-yellow-300">See troubleshooting guide</a>
                 </p>
               )}
-              {networking.remotelyManaged && networking.externalUrl && networking.connectable && (
+              {networking.remotelyManaged && networking.externalUrl && (
                 <div className="flex items-center gap-3">
                   <span className="text-sm text-gray-400 w-28 shrink-0">Connectable</span>
-                  <span className="text-xs text-green-400 flex items-center gap-1">
-                    <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-                    Yes — reachable at external URL
-                  </span>
+                  {networking.connectable ? (
+                    <span className="text-xs text-green-400 flex items-center gap-1">
+                      <span className="h-2 w-2 rounded-full bg-green-500 shrink-0" aria-hidden />
+                      <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                      Yes — reachable at external URL
+                    </span>
+                  ) : (
+                    <span className="text-xs text-gray-500">No</span>
+                  )}
                 </div>
               )}
             </>
