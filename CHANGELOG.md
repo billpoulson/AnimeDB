@@ -6,22 +6,6 @@ All notable changes to AnimeDB will be documented in this file.
 
 _No unreleased changes._
 
-## [2026-03-07]
-
-### Added
-
-- **UPnP tray: View log** — Tray context menu has a "View log" item that opens the update/connectability log file (or its folder if the file does not exist yet).
-- **Release script: latest.yml patch** — Before uploading, the script patches `latest.yml` so its `path` and `url` match the actual setup exe filename (electron-builder uses dashes, NSIS output uses spaces); the in-app updater can then download the update correctly.
-
-### Changed
-
-- **UPnP tray: connectability** — Prefer IPv4 for DNS so the connectability check matches browser behavior; add a short delay after UPnP setup before the first check; log connectability failures to the same log file with a `Connectability:` prefix so the exact error is visible.
-- **Cursor rules** — Release process and date-versioning rule updated: full sequence (version, commit, push, build, publish, verify), requirement to attach setup exe and latest.yml, and that latest.yml path/url must match the exe (script patches it).
-
-### Added (tooling)
-
-- **Install script** — install_v44.ps1 (replace v43).
-
 ## [2026-03-06]
 
 ### Added
@@ -70,6 +54,17 @@ _No unreleased changes._
 - **UPnP section shows connectable status** — The Peers → Networking UPnP block now shows connectable status (Connectable: Yes — reachable at external URL, or Connectable: No) when an external URL is set. When the instance is remotely managed by the UPnP tray, the Connectable row still appears below External URL when reachable.
 - **Managed by UPnP helper** — The “Managed by UPnP helper” message is shown directly below the External URL input when the URL is managed by the tray.
 - **Tests for connectable** — Unit tests (Peers), e2e (Playwright Peers connectable status), and backend integration tests (connectable status change) for the connectable flow.
+- **UPnP tray: View log** — Tray context menu has a "View log" item that opens the update/connectability log file (or its folder if the file does not exist yet).
+- **Release script: latest.yml patch** — Before uploading, the script patches `latest.yml` so its `path` and `url` match the actual setup exe filename (electron-builder uses dashes, NSIS output uses spaces); the in-app updater can then download the update correctly.
+
+### Changed
+
+- **UPnP tray: connectability** — Prefer IPv4 for DNS so the connectability check matches browser behavior; add a short delay after UPnP setup before the first check; log connectability failures to the same log file with a `Connectability:` prefix so the exact error is visible.
+- **Cursor rules** — Release process and date-versioning rule updated: full sequence (version, commit, push, build, publish, verify), requirement to attach setup exe and latest.yml, and that latest.yml path/url must match the exe (script patches it).
+
+### Added (tooling)
+
+- **Install script** — install_v44.ps1 (replace v43).
 
 ## [2026-03-02]
 
