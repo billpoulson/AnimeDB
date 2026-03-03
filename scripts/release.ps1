@@ -79,14 +79,17 @@ try {
     Pop-Location
 }
 
-# 2. Resolve artifact paths (exe name includes date version)
+# 2. Resolve artifact paths (exe name includes date version; electron-builder may normalize e.g. 2026.03.06 -> 2026.3.6)
+$trayVersionNormalized = ($trayVersion.Split('.') | ForEach-Object { [int]$_ }) -join '.'
 $setupExe1 = Join-Path $distDir "AnimeDB UPnP Setup $trayVersion.exe"
 $setupExe2 = Join-Path $distDir "AnimeDB-UPnP-Setup-$trayVersion.exe"
+$setupExe3 = Join-Path $distDir "AnimeDB UPnP Setup $trayVersionNormalized.exe"
 $setupExe = $null
 if (Test-Path $setupExe1) { $setupExe = $setupExe1 }
+elseif (Test-Path $setupExe3) { $setupExe = $setupExe3 }
 elseif (Test-Path $setupExe2) { $setupExe = $setupExe2 }
 if (-not $setupExe) {
-    Write-Host "ERROR: Tray setup exe not found (looked for $setupExe1 or $setupExe2)" -ForegroundColor Red
+    Write-Host "ERROR: Tray setup exe not found (looked for $setupExe1, $setupExe3, or $setupExe2)" -ForegroundColor Red
     if ($previousVersion) {
         $pkgRaw = (Get-Content $pkgPath -Raw) -replace '"version":\s*"[^"]*"', "`"version`": `"$previousVersion`""
         Set-Content $pkgPath -Value $pkgRaw -NoNewline
