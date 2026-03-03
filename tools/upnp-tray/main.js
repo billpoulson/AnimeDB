@@ -114,15 +114,15 @@ function updateContextMenu() {
       label: 'Login',
       click: () => showLoginWindow(),
     },
-    {
-      label: 'View log',
-      click: () => {
-        shell.openPath(logPath).then((err) => {
-          if (err && fs.existsSync(path.dirname(logPath))) shell.openPath(path.dirname(logPath));
-        });
-      },
-    },
   );
+  items.push({
+    label: 'View log',
+    click: () => {
+      shell.openPath(logPath).then((err) => {
+        if (err && fs.existsSync(path.dirname(logPath))) shell.openPath(path.dirname(logPath));
+      });
+    },
+  });
 
   if (app.isPackaged) {
     const updateLabel =

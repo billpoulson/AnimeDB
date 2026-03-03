@@ -6,6 +6,16 @@ All notable changes to AnimeDB will be documented in this file.
 
 _No unreleased changes._
 
+## [2026-03-07]
+
+### Changed
+
+- **UPnP tray** — "View log" context menu item ensured (opens update/connectability log or its folder).
+
+### Added (tooling)
+
+- **Install script** — install_v45.ps1 (replace v44).
+
 ## [2026-03-06]
 
 ### Added
