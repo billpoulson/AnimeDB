@@ -1,0 +1,29 @@
+---
+description: Use date versioning for main app releases and artifacts; follow ADR and conventions.
+alwaysApply: true
+---
+
+# Date versioning for releases and artifacts
+
+Follow **date-based versioning** for the main AnimeDB app. See `docs/adr/2026-03-02-date-versioning-for-releases-and-artifacts.md` for the full ADR.
+
+## Main app
+
+- **Git release tags:** `vYYYY.MM.DD` for the first release of the day (e.g. `v2026.03.03`). For **multiple releases the same day**, use `vYYYY.MM.DD.N` with N = 2, 3, … (e.g. `v2026.03.03.2`). First of the day = no suffix; second = `.2`, third = `.3`, etc.
+- **CHANGELOG section headings:** `[YYYY-MM-DD]` (e.g. `[2026-03-02]`). One section per release or one per day with multiple entries as needed.
+- **Artifacts:** Name or reference artifacts with the same version as the release (the tag) they belong to.
+
+## Install script
+
+- **Filenames:** `install_v<N>.ps1` with N an integer incremented each release (e.g. `install_v39.ps1`). Not tied to the calendar date; used for cache-busting. See `.cursorrules` for the commit checklist (copy `install.ps1` → new `install_v<N>.ps1`, remove old, update README).
+
+## Sub-projects (e.g. UPnP Tray)
+
+- May use their own scheme. UPnP Tray uses semver in `package.json` and release tags with prefix `upnp-tray-v` (e.g. `upnp-tray-v1.0.2`). Do not use main-app date tags for tray releases.
+
+## When creating or updating releases
+
+1. Use today’s date or the next calendar date. Tag: `vYYYY.MM.DD` (first of the day) or `vYYYY.MM.DD.N` (N ≥ 2 for same-day releases).
+2. Update CHANGELOG under the matching `[YYYY-MM-DD]` section.
+3. Create the Git tag in the form above.
+4. When versioning the install script, increment N in `install_v<N>.ps1` and update README to point to the new script.
